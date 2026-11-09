@@ -20,7 +20,7 @@ internal sealed partial class OsdViewModel : ObservableObject
     public partial int Level { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Glyph), nameof(LevelText), nameof(BarOpacity))]
+    [NotifyPropertyChangedFor(nameof(Glyph), nameof(BarOpacity))]
     public partial bool Muted { get; set; }
 
     [ObservableProperty]
@@ -38,7 +38,8 @@ internal sealed partial class OsdViewModel : ObservableObject
         _ => GlyphVolume3,
     };
 
-    public string LevelText => Muted ? "Muted" : Level.ToString(CultureInfo.CurrentCulture);
+    // Like the Windows flyout: the level stays visible while muted; only the icon and the dimmed slider show mute.
+    public string LevelText => Level.ToString(CultureInfo.CurrentCulture);
 
-    public double BarOpacity => Muted ? 0.35 : 1.0;
+    public double BarOpacity => Muted ? 0.4 : 1.0;
 }

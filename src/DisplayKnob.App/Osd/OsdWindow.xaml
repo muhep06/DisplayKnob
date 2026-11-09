@@ -5,7 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="DisplayKnob volume">
 
-  <Grid x:Name="Root" Padding="18,0,18,0" ColumnSpacing="14">
+  <!-- Modeled on the Windows 11 volume flyout: icon, slider, number. -->
+  <Grid x:Name="Root" Padding="16,0,18,0" ColumnSpacing="12">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="Auto" />
       <ColumnDefinition Width="*" />
@@ -16,17 +17,21 @@
         Grid.Column="0"
         VerticalAlignment="Center"
         FontFamily="{ThemeResource SymbolThemeFontFamily}"
-        FontSize="18"
+        FontSize="16"
         Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" />
 
-    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+    <StackPanel Grid.Column="1" VerticalAlignment="Center">
       <TextBlock
+          Margin="0,0,0,-6"
           Style="{ThemeResource CaptionTextBlockStyle}"
           Opacity="0.75"
           Text="{x:Bind ViewModel.MonitorName, Mode=OneWay}"
           TextTrimming="CharacterEllipsis"
           Visibility="{x:Bind ViewModel.ShowMonitorName, Mode=OneWay}" />
-      <ProgressBar
+      <!-- Display only: the window is click-through and never focused. -->
+      <Slider
+          IsHitTestVisible="False"
+          IsTabStop="False"
           Maximum="100"
           Minimum="0"
           Opacity="{x:Bind ViewModel.BarOpacity, Mode=OneWay}"
@@ -35,9 +40,9 @@
 
     <TextBlock
         Grid.Column="2"
-        MinWidth="30"
+        MinWidth="24"
         VerticalAlignment="Center"
-        Style="{ThemeResource BodyStrongTextBlockStyle}"
+        Style="{ThemeResource BodyTextBlockStyle}"
         Text="{x:Bind ViewModel.LevelText, Mode=OneWay}"
         TextAlignment="Right" />
   </Grid>
