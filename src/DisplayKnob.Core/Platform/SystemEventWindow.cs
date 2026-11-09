@@ -201,7 +201,9 @@ internal sealed unsafe class SystemEventWindow : ISystemEventSource, IMouseWheel
                     Raise(SystemEventKind.DisplaysChanged);
                     break;
 
-                case PInvoke.WM_DEVICECHANGE when wParam.Value is PInvoke.DBT_DEVNODES_CHANGED or PInvoke.DBT_DEVICEARRIVAL or PInvoke.DBT_DEVICEREMOVECOMPLETE:
+                // Only arrival/removal of the monitor interface we registered for. DBT_DEVNODES_CHANGED fires for
+                // every USB device too, and a KVM switch moves the whole USB hub: dozens of events per switch.
+                case PInvoke.WM_DEVICECHANGE when wParam.Value is PInvoke.DBT_DEVICEARRIVAL or PInvoke.DBT_DEVICEREMOVECOMPLETE:
                     Raise(SystemEventKind.DevicesChanged);
                     break;
 
