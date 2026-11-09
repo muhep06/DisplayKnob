@@ -1,8 +1,8 @@
-using DisplayHub.App.Tray;
-using DisplayHub.Core;
+using DisplayKnob.App.Tray;
+using DisplayKnob.Core;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DisplayHub.App;
+namespace DisplayKnob.App;
 
 /// <summary>
 /// The only place where services are wired together.
@@ -14,7 +14,7 @@ internal static class Composition
         var services = new ServiceCollection();
 
         services.AddSingleton(logger);
-        services.AddDisplayHubCore();
+        services.AddDisplayKnobCore();
         services.AddSingleton<TrayIconHost>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions

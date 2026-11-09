@@ -1,9 +1,9 @@
-using DisplayHub.App.Tray;
+using DisplayKnob.App.Tray;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Serilog;
 
-namespace DisplayHub.App;
+namespace DisplayKnob.App;
 
 /// <summary>
 /// Tray-only application: no main window is created at startup.
@@ -25,7 +25,7 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         Log.Logger = LoggingSetup.CreateLogger();
-        Log.Information("DisplayHub {Version} starting", typeof(App).Assembly.GetName().Version);
+        Log.Information("DisplayKnob {Version} starting", typeof(App).Assembly.GetName().Version);
 
         _services = Composition.Build(Log.Logger);
 
@@ -36,7 +36,7 @@ public partial class App : Application
 
     private void Shutdown()
     {
-        Log.Information("DisplayHub exiting");
+        Log.Information("DisplayKnob exiting");
 
         _tray?.Dispose();
         _services?.Dispose();

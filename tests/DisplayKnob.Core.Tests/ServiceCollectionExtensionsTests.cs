@@ -1,26 +1,26 @@
-using DisplayHub.Core;
+using DisplayKnob.Core;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DisplayHub.Core.Tests;
+namespace DisplayKnob.Core.Tests;
 
 public sealed class ServiceCollectionExtensionsTests
 {
     [Fact]
-    public void AddDisplayHubCore_RegistersSystemTimeProvider()
+    public void AddDisplayKnobCore_RegistersSystemTimeProvider()
     {
         var services = new ServiceCollection();
 
-        services.AddDisplayHubCore();
+        services.AddDisplayKnobCore();
 
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(TimeProvider));
         Assert.Same(TimeProvider.System, descriptor.ImplementationInstance);
     }
 
     [Fact]
-    public void AddDisplayHubCore_NullServices_Throws()
+    public void AddDisplayKnobCore_NullServices_Throws()
     {
         IServiceCollection services = null!; // Deliberately null to test argument validation.
 
-        Assert.Throws<ArgumentNullException>(() => services.AddDisplayHubCore());
+        Assert.Throws<ArgumentNullException>(() => services.AddDisplayKnobCore());
     }
 }

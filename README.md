@@ -1,4 +1,4 @@
-# DisplayHub
+# DisplayKnob
 
 > Work in progress. Not ready for use yet.
 
@@ -6,7 +6,7 @@ An open-source display management hub for Windows, living in the system tray.
 
 ## Why
 
-If you share a monitor between a Mac and a Windows PC through a KVM, the Mac's volume keys change the **monitor's own volume** over DDC/CI, while Windows only attenuates audio in software. DisplayHub makes the Windows volume keys drive the monitor's hardware volume too, so both machines agree.
+If you share a monitor between a Mac and a Windows PC through a KVM, the Mac's volume keys change the **monitor's own volume** over DDC/CI, while Windows only attenuates audio in software. DisplayKnob makes the Windows volume keys drive the monitor's hardware volume too, so both machines agree.
 
 ## Features (v0.1, planned)
 

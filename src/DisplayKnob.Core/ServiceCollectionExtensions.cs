@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DisplayHub.Core;
+namespace DisplayKnob.Core;
 
 /// <summary>
-/// Registers DisplayHub.Core services with a DI container.
+/// Registers DisplayKnob.Core services with a DI container.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection to add to.</param>
     /// <returns>The same service collection, for chaining.</returns>
-    public static IServiceCollection AddDisplayHubCore(this IServiceCollection services)
+    public static IServiceCollection AddDisplayKnobCore(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 

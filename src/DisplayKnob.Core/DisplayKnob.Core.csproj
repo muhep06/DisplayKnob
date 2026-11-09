@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>DisplayHub.Core</RootNamespace>
+    <RootNamespace>DisplayKnob.Core</RootNamespace>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- CsWin32 generates unsafe interop code. -->
@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="DisplayHub.Core.Tests" />
+    <InternalsVisibleTo Include="DisplayKnob.Core.Tests" />
   </ItemGroup>
 
 </Project>

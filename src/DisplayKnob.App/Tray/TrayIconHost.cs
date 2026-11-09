@@ -4,7 +4,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
-namespace DisplayHub.App.Tray;
+namespace DisplayKnob.App.Tray;
 
 /// <summary>
 /// Owns the notification-area icon and its context menu.
@@ -24,14 +24,14 @@ internal sealed class TrayIconHost : IDisposable
 
         _icon = new TaskbarIcon
         {
-            ToolTipText = "DisplayHub",
+            ToolTipText = "DisplayKnob",
             // Native Win32 popup menu: works without any XAML window.
             ContextMenuMode = ContextMenuMode.PopupMenu,
             ContextFlyout = menu,
             // Placeholder until a real icon asset exists.
             IconSource = new GeneratedIconSource
             {
-                Text = "DH",
+                Text = "DK",
                 FontSize = 36,
                 Foreground = new SolidColorBrush(Colors.White),
                 Background = new SolidColorBrush(Colors.SteelBlue),

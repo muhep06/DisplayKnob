@@ -1,6 +1,6 @@
 # Architecture
 
-## What DisplayHub is
+## What DisplayKnob is
 
 An open-source display management hub for Windows, shipped as a tray app.
 
@@ -26,40 +26,40 @@ Later versions add brightness and input switching, display presets, virtual disp
 | Tray | H.NotifyIcon.WinUI |
 | Win32 interop | Microsoft.Windows.CsWin32 (`NativeMethods.txt`) |
 | Core Audio | NAudio (MMDeviceEnumerator, AudioEndpointVolume, IMMNotificationClient) |
-| Logging | Serilog → rolling file in `%LocalAppData%\DisplayHub\logs` |
-| Settings | JSON in `%AppData%\DisplayHub\settings.json` (System.Text.Json source generation) |
+| Logging | Serilog → rolling file in `%LocalAppData%\DisplayKnob\logs` |
+| Settings | JSON in `%AppData%\DisplayKnob\settings.json` (System.Text.Json source generation) |
 | Installer / updates | Velopack + GitHub Releases |
 | Tests | xUnit v3 (Microsoft Testing Platform) + fakes |
 
 ## Solution layout
 
 ```
-DisplayHub.slnx
+DisplayKnob.slnx
 global.json               # pins the .NET SDK version (local + CI)
 Directory.Build.props     # shared build settings
 Directory.Packages.props  # central package management: all versions live here
 .github/workflows/        # CI
 src/
-  DisplayHub.Core/        # no UI references. All hardware/OS logic lives here.
+  DisplayKnob.Core/        # no UI references. All hardware/OS logic lives here.
     Ddc/                  # IMonitorController, DxvaMonitorController, VcpCodes, per-monitor DDC worker
     Displays/             # monitor enumeration, stable IDs, hotplug watcher
     Audio/                # AudioEndpointWatcher, endpoint ↔ monitor mapping
     Input/                # KeyboardHookService (dedicated thread + message loop)
     Volume/               # IVolumeSource, HookVolumeSource, VolumeController (target selection, swallow decision, stepping, mute)
     Settings/
-  DisplayHub.App/         # WinUI 3, MVVM
+  DisplayKnob.App/         # WinUI 3, MVVM
     Tray/                 # tray icon, menu, flyout
     Osd/                  # OSD window
     Views/                # settings window and pages
     ViewModels/
     Assets/
 tests/
-  DisplayHub.Core.Tests/
+  DisplayKnob.Core.Tests/
     Fakes/                # FakeMonitorController etc.
 docs/
 ```
 
-`DisplayHub.Core` stays free of WinUI types so it is testable and could back a CLI later.
+`DisplayKnob.Core` stays free of WinUI types so it is testable and could back a CLI later.
 
 ## Engineering rules (the known traps)
 

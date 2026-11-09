@@ -8,8 +8,8 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
-    <Company>DisplayHub contributors</Company>
-    <Product>DisplayHub</Product>
-    <Copyright>Copyright (c) DisplayHub contributors</Copyright>
+    <Company>DisplayKnob contributors</Company>
+    <Product>DisplayKnob</Product>
+    <Copyright>Copyright (c) DisplayKnob contributors</Copyright>
   </PropertyGroup>
 </Project>

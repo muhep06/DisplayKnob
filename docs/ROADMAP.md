@@ -3,7 +3,7 @@
 ## v0.1 — "Volume keys control the monitor"
 
 ### M0. Scaffold
-- [x] `DisplayHub.slnx` with Core, App (WinUI 3 unpackaged, self-contained), Core.Tests
+- [x] `DisplayKnob.slnx` with Core, App (WinUI 3 unpackaged, self-contained), Core.Tests
 - [x] `Directory.Build.props`, central package management, `global.json`
 - [x] CsWin32 + `NativeMethods.txt`; NAudio; Serilog; H.NotifyIcon.WinUI
 - [x] GitHub Actions: build + test on windows-latest

@@ -1,7 +1,7 @@
-namespace DisplayHub.Core.Ddc;
+namespace DisplayKnob.Core.Ddc;
 
 /// <summary>
-/// MCCS VCP (Virtual Control Panel) feature codes used by DisplayHub.
+/// MCCS VCP (Virtual Control Panel) feature codes used by DisplayKnob.
 /// </summary>
 public static class VcpCodes
 {

@@ -1,4 +1,4 @@
-# Contributing to DisplayHub
+# Contributing to DisplayKnob
 
 Thanks for your interest! Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first: it explains the design and the hardware/Win32 traps that shape the code.
 
@@ -11,7 +11,7 @@ dotnet build
 dotnet test
 ```
 
-Run the app from `src/DisplayHub.App` (or start `DisplayHub.exe` from its `bin` folder). It has no main window; look for the tray icon. Logs go to `%LocalAppData%\DisplayHub\logs`.
+Run the app from `src/DisplayKnob.App` (or start `DisplayKnob.exe` from its `bin` folder). It has no main window; look for the tray icon. Logs go to `%LocalAppData%\DisplayKnob\logs`.
 
 Real DDC/CI behavior can only be verified on real monitors. If your change touches DDC, describe the monitors you tested with in the PR.
 
@@ -19,7 +19,7 @@ Real DDC/CI behavior can only be verified on real monitors. If your change touch
 
 - Keep PRs small and focused. Open an issue first for larger changes.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(ddc): ...`, `fix(audio): ...`, `docs: ...`, `chore: ...`.
-- `dotnet build` must pass with no warnings in `DisplayHub.Core` (warnings are errors there) and `dotnet test` must pass.
+- `dotnet build` must pass with no warnings in `DisplayKnob.Core` (warnings are errors there) and `dotnet test` must pass.
 - Don't swap a part of the tech stack or add a NuGet package without discussing it in an issue first.
 
 ## Coding standards
@@ -28,8 +28,8 @@ Baseline: the .NET runtime coding style, enforced by `.editorconfig` and analyze
 
 ### Project settings
 - Nullable enabled, `LangVersion` latest, implicit usings (set in `Directory.Build.props`).
-- `DisplayHub.Core`: warnings are errors, `AnalysisLevel=latest-recommended`. Don't suppress a warning without a one-line justification comment.
-- File-scoped namespaces. Namespace matches folder (`DisplayHub.Core.Ddc`).
+- `DisplayKnob.Core`: warnings are errors, `AnalysisLevel=latest-recommended`. Don't suppress a warning without a one-line justification comment.
+- File-scoped namespaces. Namespace matches folder (`DisplayKnob.Core.Ddc`).
 - One public type per file; file name = type name.
 
 ### Naming
@@ -56,7 +56,7 @@ Baseline: the .NET runtime coding style, enforced by `.editorconfig` and analyze
 
 ### Async and threading
 - No `async void` except event handlers. No `.Result` / `.Wait()` / `GetAwaiter().GetResult()` on UI or hook threads.
-- `ConfigureAwait(false)` in `DisplayHub.Core` (Core is mostly dedicated threads and channels, so this rarely comes up); not needed in `DisplayHub.App`.
+- `ConfigureAwait(false)` in `DisplayKnob.Core` (Core is mostly dedicated threads and channels, so this rarely comes up); not needed in `DisplayKnob.App`.
 - Pass `CancellationToken` through long-running or I/O methods (`CancellationToken cancellationToken = default` as the last parameter).
 - Use `System.Threading.Channels` for producer/consumer queues (hook → DDC workers). Use `Lock` for simple locking.
 - UI updates only via `DispatcherQueue.TryEnqueue`.
@@ -77,8 +77,8 @@ Baseline: the .NET runtime coding style, enforced by `.editorconfig` and analyze
 - Core depends on abstractions (`IMonitorController`, `IVolumeSource`) so it can be unit-tested.
 - Time: inject `TimeProvider`; don't call `DateTime.Now` / `Stopwatch` / `Task.Delay` directly in logic that needs testing. Tests use `FakeTimeProvider`.
 - Constructor injection; no service locator, no static mutable state.
-- Composition with `Microsoft.Extensions.DependencyInjection`, wired only at App startup. Core exposes `AddDisplayHubCore(this IServiceCollection)`; Core types never resolve services themselves.
-- No WinUI / `Microsoft.UI.*` types in `DisplayHub.Core`.
+- Composition with `Microsoft.Extensions.DependencyInjection`, wired only at App startup. Core exposes `AddDisplayKnobCore(this IServiceCollection)`; Core types never resolve services themselves.
+- No WinUI / `Microsoft.UI.*` types in `DisplayKnob.Core`.
 - Settings types are records serialized with a `JsonSerializerContext` (source generation); no reflection-based serialization.
 
 ### Packages
@@ -92,7 +92,7 @@ Baseline: the .NET runtime coding style, enforced by `.editorconfig` and analyze
 ### Tests
 - xUnit v3. Test name: `Method_Scenario_ExpectedResult`.
 - One behavior per test; arrange/act/assert separated by blank lines.
-- No real hardware, timers, or sleeps in unit tests. Use fakes in `tests/DisplayHub.Core.Tests/Fakes/` and `FakeTimeProvider`.
+- No real hardware, timers, or sleeps in unit tests. Use fakes in `tests/DisplayKnob.Core.Tests/Fakes/` and `FakeTimeProvider`.
 
 ### Comments and docs
 - XML doc comments (`///`) on public types and members in Core (enforced by the build).
