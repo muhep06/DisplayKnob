@@ -17,6 +17,7 @@ internal static class Composition
         services.AddSingleton(logger);
         services.AddDisplayKnobCore();
         services.AddSingleton<TrayIconHost>();
+        services.AddSingleton<TrayWheelHandler>();
         services.AddSingleton<OsdPresenter>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions

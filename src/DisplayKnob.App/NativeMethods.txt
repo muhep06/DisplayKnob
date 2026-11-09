@@ -18,3 +18,9 @@ WM_NCCALCSIZE
 DwmSetWindowAttribute
 DWMWINDOWATTRIBUTE
 DWM_WINDOW_CORNER_PREFERENCE
+
+// Tray wheel: where the notification icon is on screen, and the fine-step modifiers
+Shell_NotifyIconGetRect
+NOTIFYICONIDENTIFIER
+GetAsyncKeyState
+VIRTUAL_KEY

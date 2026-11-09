@@ -36,6 +36,7 @@ public partial class App : Application
         _tray = _services.GetRequiredService<TrayIconHost>();
         _tray.ExitRequested += async (_, _) => await ShutdownAsync();
         _tray.Show();
+        _services.GetRequiredService<TrayWheelHandler>();
 
         // UI-thread objects must be created here, not lazily from a background thread.
         var osd = _services.GetRequiredService<OsdPresenter>();
@@ -67,6 +68,9 @@ public partial class App : Application
             // The mapper subscribes to audio/monitor changes on construction, so create it before the first refresh.
             services.GetRequiredService<AudioMonitorMapper>();
             await services.GetRequiredService<MonitorRegistry>().RefreshAsync();
+
+            // From here on, display changes, KVM switches and resume re-enumerate the monitors.
+            services.GetRequiredService<DisplayChangeWatcher>();
 
             services.GetRequiredService<IVolumeSource>().Start(services.GetRequiredService<IVolumeCommandSink>());
         }
