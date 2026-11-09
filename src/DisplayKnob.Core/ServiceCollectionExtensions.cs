@@ -1,6 +1,9 @@
+using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Ddc;
 using DisplayKnob.Core.Displays;
+using DisplayKnob.Core.Settings;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 
 namespace DisplayKnob.Core;
 
@@ -26,6 +29,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMonitorEnumerator, DxvaMonitorEnumerator>();
         services.AddSingleton<MonitorRegistry>();
         services.AddSingleton<MonitorProbe>();
+        services.AddSingleton<ISettingsStore>(sp => new JsonSettingsStore(JsonSettingsStore.DefaultPath, sp.GetRequiredService<ILogger>()));
+        services.AddSingleton<IAudioEndpointWatcher, NAudioEndpointWatcher>();
+        services.AddSingleton<AudioMonitorMapper>();
 
         return services;
     }

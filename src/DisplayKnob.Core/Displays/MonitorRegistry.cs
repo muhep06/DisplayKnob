@@ -34,6 +34,9 @@ public sealed class MonitorRegistry : IAsyncDisposable
         _logger = logger.ForContext<MonitorRegistry>();
     }
 
+    /// <summary>Raised after <see cref="Monitors"/> is replaced by a refresh.</summary>
+    public event EventHandler? MonitorsChanged;
+
     /// <summary>The monitors found by the last refresh.</summary>
     public IReadOnlyList<DdcWorker> Monitors => Volatile.Read(ref _monitors);
 
@@ -64,6 +67,8 @@ public sealed class MonitorRegistry : IAsyncDisposable
         {
             _refreshLock.Release();
         }
+
+        MonitorsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <inheritdoc/>

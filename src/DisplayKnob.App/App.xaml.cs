@@ -1,4 +1,6 @@
 using DisplayKnob.App.Tray;
+using DisplayKnob.Core.Audio;
+using DisplayKnob.Core.Displays;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Serilog;
@@ -32,6 +34,23 @@ public partial class App : Application
         _tray = _services.GetRequiredService<TrayIconHost>();
         _tray.ExitRequested += async (_, _) => await ShutdownAsync();
         _tray.Show();
+
+        _ = StartCoreAsync(_services);
+    }
+
+    private static async Task StartCoreAsync(IServiceProvider services)
+    {
+        try
+        {
+            // The mapper subscribes to audio/monitor changes on construction, so create it before the first refresh.
+            services.GetRequiredService<AudioMonitorMapper>();
+            await services.GetRequiredService<MonitorRegistry>().RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            // Keep the tray alive so the user can still probe and read the log.
+            Log.Error(ex, "Startup failed");
+        }
     }
 
     private async Task ShutdownAsync()
