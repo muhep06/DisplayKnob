@@ -17,7 +17,7 @@ If you share a monitor between a Mac and a Windows PC through a KVM, the Mac's v
 - Keys pass through untouched when audio goes elsewhere (e.g. headphones)
 - No drivers, no admin rights
 
-See [docs/PLAN.md](docs/PLAN.md) for the roadmap.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the roadmap.
 
 ## Requirements
 
@@ -32,6 +32,10 @@ Requires the .NET 10 SDK.
 dotnet build
 dotnet test
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Known limitations
 
