@@ -1,0 +1,13 @@
+// OSD window: no activation, click-through, hidden from Alt+Tab, fade via layered alpha
+GetWindowLongPtr
+SetWindowLongPtr
+SetLayeredWindowAttributes
+SetWindowPos
+ShowWindow
+WINDOW_EX_STYLE
+HWND_TOPMOST
+
+// Rounded corners on a borderless window (Windows 11)
+DwmSetWindowAttribute
+DWMWINDOWATTRIBUTE
+DWM_WINDOW_CORNER_PREFERENCE

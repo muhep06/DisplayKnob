@@ -127,7 +127,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
 
         state.LastUsed = _timeProvider.GetUtcNow();
         _logger.Debug("{Monitor}: volume {Level}%{Muted}", state.Monitor.DisplayName, state.Level, state.Muted ? " (muted)" : string.Empty);
-        VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Level, state.Muted));
+        VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted));
     }
 
     private async Task RunAsync(CancellationToken stopToken)

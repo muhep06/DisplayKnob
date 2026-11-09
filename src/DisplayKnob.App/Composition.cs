@@ -1,3 +1,4 @@
+using DisplayKnob.App.Osd;
 using DisplayKnob.App.Tray;
 using DisplayKnob.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ internal static class Composition
         services.AddSingleton(logger);
         services.AddDisplayKnobCore();
         services.AddSingleton<TrayIconHost>();
+        services.AddSingleton<OsdPresenter>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {

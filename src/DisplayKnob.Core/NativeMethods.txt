@@ -12,6 +12,8 @@ CapabilitiesRequestAndCapabilitiesReply
 EnumDisplayMonitors
 GetMonitorInfo
 MONITORINFOEXW
+MONITORINFOF_PRIMARY
+GetDpiForMonitor
 
 // user32/kernel32: low-level keyboard hook on a dedicated message-loop thread
 SetWindowsHookEx

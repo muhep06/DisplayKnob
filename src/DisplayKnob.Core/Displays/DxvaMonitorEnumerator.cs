@@ -48,14 +48,14 @@ internal sealed class DxvaMonitorEnumerator : IMonitorEnumerator
             for (var i = 0; i < physicalMonitors.Length; i++)
             {
                 var target = i < sourceTargets.Count ? sourceTargets[i] : null;
-                controllers.Add(CreateController(physicalMonitors[i], target, $"{gdiName}#{i}"));
+                controllers.Add(CreateController(physicalMonitors[i], target, gdiName, $"{gdiName}#{i}"));
             }
         }
 
         return controllers;
     }
 
-    private DxvaMonitorController CreateController(PHYSICAL_MONITOR physical, DisplayTarget? target, string fallbackLocation)
+    private DxvaMonitorController CreateController(PHYSICAL_MONITOR physical, DisplayTarget? target, string gdiName, string fallbackLocation)
     {
         var handle = new PhysicalMonitorHandle(physical.hPhysicalMonitor);
         var edid = target is null ? null : EdidRegistryReader.TryRead(target.DevicePath, _logger);
@@ -64,7 +64,7 @@ internal sealed class DxvaMonitorEnumerator : IMonitorEnumerator
         var description = Win32Text.FromBuffer(physical.szPhysicalMonitorDescription.AsReadOnlySpan());
         var name = FirstNonEmpty(edid?.Name, target?.FriendlyName, description, fallbackLocation);
 
-        return new DxvaMonitorController(handle, identity, name, _logger);
+        return new DxvaMonitorController(handle, identity, name, gdiName, _logger);
     }
 
     private PHYSICAL_MONITOR[] GetPhysicalMonitors(HMONITOR hMonitor, string gdiName)

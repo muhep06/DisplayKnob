@@ -1,3 +1,4 @@
+using DisplayKnob.App.Osd;
 using DisplayKnob.App.Tray;
 using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Displays;
@@ -35,6 +36,9 @@ public partial class App : Application
         _tray = _services.GetRequiredService<TrayIconHost>();
         _tray.ExitRequested += async (_, _) => await ShutdownAsync();
         _tray.Show();
+
+        // UI-thread objects must be created here, not lazily from a background thread.
+        _services.GetRequiredService<OsdPresenter>();
 
         _ = StartCoreAsync(_services);
     }

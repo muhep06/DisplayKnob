@@ -16,17 +16,20 @@ internal sealed class DxvaMonitorController : IMonitorController
     private readonly PhysicalMonitorHandle _handle;
     private readonly ILogger _logger;
 
-    public DxvaMonitorController(PhysicalMonitorHandle handle, MonitorIdentity identity, string displayName, ILogger logger)
+    public DxvaMonitorController(PhysicalMonitorHandle handle, MonitorIdentity identity, string displayName, string gdiDeviceName, ILogger logger)
     {
         _handle = handle;
         _logger = logger.ForContext<DxvaMonitorController>();
         Identity = identity;
         DisplayName = displayName;
+        GdiDeviceName = gdiDeviceName;
     }
 
     public MonitorIdentity Identity { get; }
 
     public string DisplayName { get; }
+
+    public string? GdiDeviceName { get; }
 
     public bool TryGetVcp(byte code, out VcpValue value)
     {

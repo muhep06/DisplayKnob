@@ -18,6 +18,12 @@ public interface IMonitorController : IDisposable
     /// <summary>Human-readable monitor name.</summary>
     string DisplayName { get; }
 
+    /// <summary>
+    /// GDI device name of the display showing this monitor (e.g. <c>\\.\DISPLAY1</c>), used to locate it on the desktop.
+    /// May change after a display change; re-enumeration refreshes it.
+    /// </summary>
+    string? GdiDeviceName { get; }
+
     /// <summary>Reads a VCP feature.</summary>
     bool TryGetVcp(byte code, out VcpValue value);
 

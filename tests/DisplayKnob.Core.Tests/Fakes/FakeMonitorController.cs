@@ -23,6 +23,8 @@ internal sealed class FakeMonitorController : IMonitorController
 
     public string DisplayName { get; }
 
+    public string? GdiDeviceName { get; set; }
+
     public string? Capabilities { get; set; } = "(prot(monitor)vcp(10 12 62 8D))";
 
     /// <summary>Number of upcoming calls (of any kind) that fail before calls start succeeding.</summary>

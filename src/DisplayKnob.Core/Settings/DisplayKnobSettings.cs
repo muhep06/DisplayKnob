@@ -24,6 +24,9 @@ public sealed record DisplayKnobSettings
     /// <summary>Volume step per key press, in percent of the user scale. Shift/Alt + key always steps by 1.</summary>
     public int VolumeStep { get; init; } = 2;
 
+    /// <summary>Show the on-screen volume indicator when the volume changes.</summary>
+    public bool ShowOsd { get; init; } = true;
+
     /// <summary>Per-monitor settings keyed by monitor identity key.</summary>
     public IReadOnlyDictionary<string, MonitorSettings> Monitors { get; init; } = new Dictionary<string, MonitorSettings>();
 

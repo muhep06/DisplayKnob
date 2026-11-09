@@ -64,6 +64,9 @@ public sealed class DdcWorker : IAsyncDisposable
     /// <summary>Human-readable monitor name.</summary>
     public string DisplayName => _monitor.DisplayName;
 
+    /// <summary>GDI device name of the display showing this monitor, if known.</summary>
+    public string? GdiDeviceName => _monitor.GdiDeviceName;
+
     /// <summary>
     /// Requests a VCP write. Returns immediately; rapid repeats for the same code are coalesced.
     /// </summary>
