@@ -38,9 +38,26 @@ public partial class App : Application
         _tray.Show();
 
         // UI-thread objects must be created here, not lazily from a background thread.
-        _services.GetRequiredService<OsdPresenter>();
+        var osd = _services.GetRequiredService<OsdPresenter>();
+        PreviewOsdIfRequested(osd);
 
         _ = StartCoreAsync(_services);
+    }
+
+    // Debug builds only: DISPLAYKNOB_OSD_PREVIEW=<level> or "muted" shows the OSD once at startup,
+    // so its look can be checked without a DDC monitor as the audio output.
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void PreviewOsdIfRequested(OsdPresenter osd)
+    {
+        var value = Environment.GetEnvironmentVariable("DISPLAYKNOB_OSD_PREVIEW");
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        var muted = value.Equals("muted", StringComparison.OrdinalIgnoreCase);
+        var level = int.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ? parsed : 42;
+        osd.Preview(Math.Clamp(level, 0, 100), muted);
     }
 
     private static async Task StartCoreAsync(IServiceProvider services)

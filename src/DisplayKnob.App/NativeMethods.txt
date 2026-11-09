@@ -5,7 +5,14 @@ SetLayeredWindowAttributes
 SetWindowPos
 ShowWindow
 WINDOW_EX_STYLE
+WINDOW_STYLE
 HWND_TOPMOST
+
+// Remove the non-client frame WinUI keeps reserving (WM_NCCALCSIZE via a window subclass)
+SetWindowSubclass
+RemoveWindowSubclass
+DefSubclassProc
+WM_NCCALCSIZE
 
 // Rounded corners on a borderless window (Windows 11)
 DwmSetWindowAttribute

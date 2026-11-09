@@ -71,6 +71,16 @@ internal sealed class OsdPresenter : IDisposable
         }
     }
 
+    /// <summary>
+    /// Shows the OSD with sample values on the primary display and keeps it up until the next volume change
+    /// (development aid for checking the look).
+    /// </summary>
+    public void Preview(int level, bool muted)
+    {
+        Show(new VolumeChangedEventArgs("Preview monitor", null, level, muted));
+        _hideTimer.Stop();
+    }
+
     private void Show(VolumeChangedEventArgs e)
     {
         _viewModel.Level = e.Level;
