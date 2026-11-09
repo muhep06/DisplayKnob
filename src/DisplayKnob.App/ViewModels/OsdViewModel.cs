@@ -1,5 +1,6 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml;
 
 namespace DisplayKnob.App.ViewModels;
 
@@ -16,7 +17,7 @@ internal sealed partial class OsdViewModel : ObservableObject
     private const string GlyphVolume3 = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Glyph), nameof(LevelText))]
+    [NotifyPropertyChangedFor(nameof(Glyph), nameof(LevelText), nameof(FilledLength), nameof(EmptyLength))]
     public partial int Level { get; set; }
 
     [ObservableProperty]
@@ -42,4 +43,9 @@ internal sealed partial class OsdViewModel : ObservableObject
     public string LevelText => Level.ToString(CultureInfo.CurrentCulture);
 
     public double BarOpacity => Muted ? 0.4 : 1.0;
+
+    // The bar is two star-sized columns, so the fill tracks the level at any width.
+    public GridLength FilledLength => new(Level, GridUnitType.Star);
+
+    public GridLength EmptyLength => new(100 - Level, GridUnitType.Star);
 }

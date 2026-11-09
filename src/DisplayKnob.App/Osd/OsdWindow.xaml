@@ -5,8 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="DisplayKnob volume">
 
-  <!-- Modeled on the Windows 11 volume flyout: icon, slider, number. -->
-  <Grid x:Name="Root" Padding="16,0,18,0" ColumnSpacing="12">
+  <!-- Modeled on the Windows 11 volume flyout: icon, rounded level bar, number. -->
+  <Grid x:Name="Root" Padding="14,0,14,0" ColumnSpacing="12">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="Auto" />
       <ColumnDefinition Width="*" />
@@ -20,27 +20,27 @@
         FontSize="16"
         Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" />
 
-    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
       <TextBlock
-          Margin="0,0,0,-6"
           Style="{ThemeResource CaptionTextBlockStyle}"
           Opacity="0.75"
           Text="{x:Bind ViewModel.MonitorName, Mode=OneWay}"
           TextTrimming="CharacterEllipsis"
           Visibility="{x:Bind ViewModel.ShowMonitorName, Mode=OneWay}" />
-      <!-- Display only: the window is click-through and never focused. -->
-      <Slider
-          IsHitTestVisible="False"
-          IsTabStop="False"
-          Maximum="100"
-          Minimum="0"
-          Opacity="{x:Bind ViewModel.BarOpacity, Mode=OneWay}"
-          Value="{x:Bind ViewModel.Level, Mode=OneWay}" />
+
+      <Grid Height="4" Opacity="{x:Bind ViewModel.BarOpacity, Mode=OneWay}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="{x:Bind ViewModel.FilledLength, Mode=OneWay}" />
+          <ColumnDefinition Width="{x:Bind ViewModel.EmptyLength, Mode=OneWay}" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.ColumnSpan="2" Background="{ThemeResource ControlStrongFillColorDefaultBrush}" CornerRadius="2" />
+        <Border Grid.Column="0" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="2" />
+      </Grid>
     </StackPanel>
 
     <TextBlock
         Grid.Column="2"
-        MinWidth="24"
+        MinWidth="22"
         VerticalAlignment="Center"
         Style="{ThemeResource BodyTextBlockStyle}"
         Text="{x:Bind ViewModel.LevelText, Mode=OneWay}"

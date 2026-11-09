@@ -12,8 +12,9 @@ namespace DisplayKnob.App.Osd;
 /// <remarks>Must be created on the UI thread. The window is created once and reused.</remarks>
 internal sealed class OsdPresenter : IDisposable
 {
-    private const double WidthDip = 240;
-    private const double HeightDip = 52;
+    // Roughly the size of the Windows 11 volume flyout.
+    private const double WidthDip = 192;
+    private const double HeightDip = 46;
     private const double BottomMarginDip = 24;
     private const byte FadeStep = 32; // 255 → 0 in 8 ticks of ~16 ms ≈ 130 ms.
 
