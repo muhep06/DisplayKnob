@@ -42,6 +42,28 @@ internal sealed class NAudioEndpointWatcher : IAudioEndpointWatcher
 
     public AudioEndpoint? DefaultRenderEndpoint => Volatile.Read(ref _default);
 
+    public IReadOnlyList<AudioEndpoint> GetRenderEndpoints()
+    {
+        try
+        {
+            var endpoints = new List<AudioEndpoint>();
+            foreach (var device in _enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+            {
+                using (device)
+                {
+                    endpoints.Add(new AudioEndpoint(device.ID, device.FriendlyName));
+                }
+            }
+
+            return endpoints;
+        }
+        catch (COMException ex)
+        {
+            _logger.Warning(ex, "Could not list audio outputs");
+            return [];
+        }
+    }
+
     public bool TrySetVolume(string endpointId, int level)
     {
         var scalar = Math.Clamp(level, 0, 100) / 100f;

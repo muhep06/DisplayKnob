@@ -42,6 +42,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<VolumeController>();
         services.AddSingleton<IVolumeCommandSink>(sp => sp.GetRequiredService<VolumeController>());
         services.AddSingleton<EndpointVolumeMirror>();
+        services.AddSingleton<MonitorLevelService>();
+        services.AddSingleton<IStartupRegistration, RunKeyStartupRegistration>();
         services.AddSingleton<KeyboardHookService>();
         services.AddSingleton<IVolumeSource, HookVolumeSource>();
 

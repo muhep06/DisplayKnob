@@ -38,6 +38,24 @@ public static class DisplayLocator
         return match is not null || primary is not null;
     }
 
+    /// <summary>
+    /// Gets the work area of the display containing the point (physical pixels), or of the primary display
+    /// when no display contains it.
+    /// </summary>
+    public static bool TryGetWorkAreaAt(int x, int y, out DisplayWorkArea area)
+    {
+        foreach (var (name, info, _) in EnumerateDisplays())
+        {
+            var bounds = info.monitorInfo.rcMonitor;
+            if (x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom)
+            {
+                return TryGetWorkArea(name, out area);
+            }
+        }
+
+        return TryGetWorkArea(null, out area);
+    }
+
     private static unsafe List<(string Name, MONITORINFOEXW Info, double Scale)> EnumerateDisplays()
     {
         var result = new List<(string, MONITORINFOEXW, double)>();

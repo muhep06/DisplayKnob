@@ -14,6 +14,9 @@ public interface IAudioEndpointWatcher : IDisposable
     /// <summary>The current default render endpoint, or <see langword="null"/> if there is none.</summary>
     AudioEndpoint? DefaultRenderEndpoint { get; }
 
+    /// <summary>All active render endpoints (for the mapping settings).</summary>
+    IReadOnlyList<AudioEndpoint> GetRenderEndpoints();
+
     /// <summary>
     /// Sets the endpoint's Windows (software) volume to <paramref name="level"/> (0–100) and unmutes it.
     /// The resulting <see cref="DefaultEndpointVolumeChanged"/> is flagged <see cref="EndpointVolumeChangedEventArgs.IsOwnChange"/>.

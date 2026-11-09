@@ -14,6 +14,9 @@ public enum VolumeAction
 
     /// <summary>Re-read the monitor's volume and mute state without changing them.</summary>
     Refresh,
+
+    /// <summary>Set the volume to <see cref="VolumeCommand.Level"/> (e.g. from a slider) and unmute.</summary>
+    Set,
 }
 
 /// <summary>
@@ -21,7 +24,8 @@ public enum VolumeAction
 /// </summary>
 /// <param name="Action">What to do.</param>
 /// <param name="Fine">Step by 1 instead of the configured step size.</param>
-public readonly record struct VolumeCommand(VolumeAction Action, bool Fine = false);
+/// <param name="Level">Target level (0–100) for <see cref="VolumeAction.Set"/>; ignored otherwise.</param>
+public readonly record struct VolumeCommand(VolumeAction Action, bool Fine = false, int Level = 0);
 
 /// <summary>
 /// Accepts volume commands. Implementations must return immediately (callers include the keyboard hook).

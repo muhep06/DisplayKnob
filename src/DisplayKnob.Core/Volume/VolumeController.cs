@@ -172,7 +172,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
             // Polling re-reads every few seconds; only report what actually changed.
             if (!SameReading(previous, state))
             {
-                VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: false));
+                VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: false, state.Monitor.Identity.Key));
             }
 
             return;
@@ -186,14 +186,19 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
         else
         {
-            // Like macOS: any volume key unmutes.
+            // Like macOS: any volume key unmutes. So does moving a slider.
             if (state.Muted)
             {
                 await SetMutedAsync(state, false, cancellationToken).ConfigureAwait(false);
             }
 
             var step = command.Fine ? 1 : Math.Clamp(_settings.Current.VolumeStep, 1, 100);
-            var level = Math.Clamp(state.Level + (command.Action == VolumeAction.Up ? step : -step), 0, 100);
+            var level = command.Action switch
+            {
+                VolumeAction.Set => Math.Clamp(command.Level, 0, 100),
+                VolumeAction.Up => Math.Clamp(state.Level + step, 0, 100),
+                _ => Math.Clamp(state.Level - step, 0, 100),
+            };
             if (level != state.Level)
             {
                 state.Level = level;
@@ -203,7 +208,9 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
 
         state.LastUsed = _timeProvider.GetUtcNow();
         _logger.Debug("{Monitor}: volume {Level}%{Muted}", state.Monitor.DisplayName, state.Level, state.Muted ? " (muted)" : string.Empty);
-        VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted));
+
+        // A slider already shows the level it sets; the OSD would only cover the screen while dragging.
+        VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: command.Action != VolumeAction.Set, state.Monitor.Identity.Key));
     }
 
     private async Task RunAsync(CancellationToken stopToken)
@@ -445,29 +452,19 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         return false;
     }
 
-    private (uint Min, uint Max) GetRange(MonitorState state)
-    {
-        var settings = _settings.Current.ForMonitor(state.Monitor.Identity.Key);
-        var max = Math.Min(settings.VolumeMax ?? state.RawMax, state.RawMax);
-        var min = Math.Min(settings.VolumeMin ?? 0, max);
-        return (min, max);
-    }
+    private (uint Min, uint Max) GetRange(MonitorState state) =>
+        _settings.Current.ForMonitor(state.Monitor.Identity.Key).GetVolumeRange(state.RawMax);
 
     private uint ToRaw(MonitorState state, int level)
     {
         var (min, max) = GetRange(state);
-        return min + (uint)Math.Round(level * (max - min) / 100.0, MidpointRounding.AwayFromZero);
+        return VcpScale.ToRaw(level, min, max);
     }
 
     private int FromRaw(MonitorState state, uint raw)
     {
         var (min, max) = GetRange(state);
-        if (raw <= min || max == min)
-        {
-            return 0;
-        }
-
-        return raw >= max ? 100 : (int)Math.Round((raw - min) * 100.0 / (max - min), MidpointRounding.AwayFromZero);
+        return VcpScale.ToPercent(raw, min, max);
     }
 
     private sealed class MonitorState

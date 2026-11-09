@@ -12,6 +12,10 @@ internal sealed class FakeAudioEndpointWatcher : IAudioEndpointWatcher
 
     public List<string> PinnedEndpoints { get; } = [];
 
+    public List<AudioEndpoint> Endpoints { get; } = [];
+
+    public IReadOnlyList<AudioEndpoint> GetRenderEndpoints() => Endpoints;
+
     public List<int> PinnedLevels { get; } = [];
 
     public void SetDefault(AudioEndpoint? endpoint)

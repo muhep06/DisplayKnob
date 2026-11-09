@@ -22,4 +22,12 @@ public sealed record MonitorSettings
     /// Lower it when the top of the monitor's range is uncomfortably loud.
     /// </summary>
     public uint? VolumeMax { get; init; }
+
+    /// <summary>The usable raw volume range, given the maximum the monitor reports.</summary>
+    public (uint Min, uint Max) GetVolumeRange(uint reportedMax)
+    {
+        var max = Math.Min(VolumeMax ?? reportedMax, reportedMax);
+        var min = Math.Min(VolumeMin ?? 0, max);
+        return (min, max);
+    }
 }

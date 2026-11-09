@@ -282,6 +282,24 @@ public sealed class VolumeControllerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Set_WritesLevelAndUnmutesQuietly()
+    {
+        await StartAsync();
+        await ProcessAsync(VolumeAction.ToggleMute);
+        var changes = new List<VolumeChangedEventArgs>();
+        _controller.VolumeChanged += (_, e) => changes.Add(e);
+
+        await _controller.ProcessAsync(new VolumeCommand(VolumeAction.Set, Level: 75), Ct);
+        await FlushAsync(_registry);
+
+        Assert.Equal(75u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+        Assert.Equal(2u, _monitor.GetCurrent(VcpCodes.AudioMute));
+        var change = Assert.Single(changes);
+        Assert.False(change.UserInitiated);
+        Assert.Equal(_monitor.Identity.Key, change.MonitorKey);
+    }
+
+    [Fact]
     public async Task KeyPress_IsUserInitiated()
     {
         await StartAsync();

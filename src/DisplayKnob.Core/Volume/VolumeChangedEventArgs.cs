@@ -6,14 +6,18 @@ namespace DisplayKnob.Core.Volume;
 public sealed class VolumeChangedEventArgs : EventArgs
 {
     /// <summary>Creates the event data.</summary>
-    public VolumeChangedEventArgs(string monitorName, string? gdiDeviceName, int level, bool muted, bool userInitiated = true)
+    public VolumeChangedEventArgs(string monitorName, string? gdiDeviceName, int level, bool muted, bool userInitiated = true, string? monitorKey = null)
     {
+        MonitorKey = monitorKey;
         UserInitiated = userInitiated;
         MonitorName = monitorName;
         GdiDeviceName = gdiDeviceName;
         Level = level;
         Muted = muted;
     }
+
+    /// <summary>The monitor's <see cref="Displays.MonitorIdentity.Key"/>, if known.</summary>
+    public string? MonitorKey { get; }
 
     /// <summary>Monitor display name.</summary>
     public string MonitorName { get; }
