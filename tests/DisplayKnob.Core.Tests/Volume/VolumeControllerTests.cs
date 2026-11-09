@@ -26,6 +26,7 @@ public sealed class VolumeControllerTests : IAsyncDisposable
     {
         _monitor.SetValue(VcpCodes.AudioVolume, 30, 100);
         _monitor.SetValue(VcpCodes.AudioMute, 2);
+        _settings.Update(s => s with { VolumePollSeconds = 0 }); // Tests drive refreshes explicitly.
         _registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [_monitor]), TimeProvider.System, new DdcWorkerOptions(1, TimeSpan.Zero), Logger.None);
         _mapper = new AudioMonitorMapper(_watcher, _registry, _settings, Logger.None);
         _controller = new VolumeController(_mapper, _settings, _time, Logger.None);
@@ -120,7 +121,7 @@ public sealed class VolumeControllerTests : IAsyncDisposable
         await StartAsync();
         await ProcessAsync(VolumeAction.Up); // 30 -> 32
         _monitor.SetValue(VcpCodes.AudioVolume, 80, 100); // Changed elsewhere (e.g. the Mac).
-        _time.Advance(TimeSpan.FromSeconds(5));
+        _time.Advance(TimeSpan.FromSeconds(2));
 
         await ProcessAsync(VolumeAction.Up);
 
@@ -249,6 +250,35 @@ public sealed class VolumeControllerTests : IAsyncDisposable
         var change = Assert.Single(changes);
         Assert.Equal(30, change.Level);
         Assert.False(change.UserInitiated);
+    }
+
+    [Fact]
+    public async Task Poll_PicksUpExternalChangeQuietly()
+    {
+        await StartAsync();
+        await AfterRefreshAsync(_controller, () => _settings.Update(s => s with { VolumePollSeconds = 10 }));
+        _monitor.SetValue(VcpCodes.AudioVolume, 80, 100); // Changed with the monitor's buttons.
+        var changes = new List<VolumeChangedEventArgs>();
+        _controller.VolumeChanged += (_, e) => changes.Add(e);
+
+        await AfterRefreshAsync(_controller, () => _time.Advance(TimeSpan.FromSeconds(10)));
+
+        var change = Assert.Single(changes);
+        Assert.Equal(80, change.Level);
+        Assert.False(change.UserInitiated);
+    }
+
+    [Fact]
+    public async Task Poll_UnchangedValue_RaisesNothing()
+    {
+        await StartAsync();
+        await AfterRefreshAsync(_controller, () => _settings.Update(s => s with { VolumePollSeconds = 10 }));
+        var changes = new List<VolumeChangedEventArgs>();
+        _controller.VolumeChanged += (_, e) => changes.Add(e);
+
+        await AfterRefreshAsync(_controller, () => _time.Advance(TimeSpan.FromSeconds(10)));
+
+        Assert.Empty(changes);
     }
 
     [Fact]

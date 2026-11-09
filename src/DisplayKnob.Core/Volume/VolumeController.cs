@@ -16,14 +16,14 @@ namespace DisplayKnob.Core.Volume;
 /// <para>Before the first step, and again after <see cref="ResyncAfterIdle"/> without use, the current value
 /// is read from the monitor, because another machine (e.g. a Mac on the same monitor) or the monitor's own
 /// buttons may have changed it. It is also re-read whenever the target changes (monitors re-enumerated after a
-/// display change, KVM switch or resume).</para>
+/// display change, KVM switch or resume), and every <see cref="DisplayKnobSettings.VolumePollSeconds"/> while idle.</para>
 /// <para>When the target stops answering DDC, the keys pass through to Windows so volume control keeps working.
 /// The monitor is re-checked with a growing interval, and on a key press, until it answers again.</para>
 /// </remarks>
 public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
 {
     /// <summary>Re-read the monitor's volume if no command arrived for this long.</summary>
-    public static readonly TimeSpan ResyncAfterIdle = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan ResyncAfterIdle = TimeSpan.FromSeconds(3);
 
     /// <summary>First re-check of a monitor that stopped answering; doubles up to <see cref="MaxProbeDelay"/>.</summary>
     public static readonly TimeSpan FirstProbeDelay = TimeSpan.FromSeconds(5);
@@ -48,6 +48,9 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     private readonly Task _loop;
     private readonly Lock _healthLock = new();
     private readonly ITimer _probeTimer;
+    private readonly ITimer _pollTimer;
+    private long _lastActivity; // Timestamp of the last processed command.
+    private int _pollSeconds = -1;
     private DdcWorker? _unresponsive; // The monitor that stopped answering; written under _healthLock.
     private TimeSpan _probeDelay;
     private long _lastKeyProbe;
@@ -68,6 +71,8 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         _logger = logger.ForContext<VolumeController>();
         _probeDelay = FirstProbeDelay;
         _probeTimer = _timeProvider.CreateTimer(_ => PostRefresh(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _pollTimer = _timeProvider.CreateTimer(_ => OnPoll(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        UpdatePollTimer();
         _loop = Task.Run(() => RunAsync(_stop.Token));
         _mapper.TargetChanged += OnTargetChanged;
         _settings.Changed += OnSettingsChanged;
@@ -133,6 +138,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         _mapper.TargetChanged -= OnTargetChanged;
         _settings.Changed -= OnSettingsChanged;
         await _probeTimer.DisposeAsync().ConfigureAwait(false);
+        await _pollTimer.DisposeAsync().ConfigureAwait(false);
         _commands.Writer.TryComplete();
         await _stop.CancelAsync().ConfigureAwait(false);
         await _loop.ConfigureAwait(false);
@@ -154,6 +160,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
 
         var refresh = command.Action == VolumeAction.Refresh;
+        var previous = _state;
         var state = await SyncAsync(target.Monitor, force: refresh, cancellationToken).ConfigureAwait(false);
         if (state is null)
         {
@@ -162,9 +169,16 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
 
         if (refresh)
         {
-            VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: false));
+            // Polling re-reads every few seconds; only report what actually changed.
+            if (!SameReading(previous, state))
+            {
+                VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: false));
+            }
+
             return;
         }
+
+        Interlocked.Exchange(ref _lastActivity, _timeProvider.GetTimestamp());
 
         if (command.Action == VolumeAction.ToggleMute)
         {
@@ -255,6 +269,11 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
 
         _state = state;
+        if (SameReading(previous, state))
+        {
+            return state;
+        }
+
         _logger.Debug(
             "Synced {Monitor}: raw volume {Raw}/{Max} = {Level}%, muted={Muted}, mute={MuteMode}",
             monitor.DisplayName,
@@ -278,9 +297,40 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         TargetRespondingChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    private static bool SameReading(MonitorState? a, MonitorState b) =>
+        a is not null && ReferenceEquals(a.Monitor, b.Monitor) && a.Level == b.Level && a.Muted == b.Muted;
+
+    private void UpdatePollTimer()
+    {
+        var seconds = Math.Max(0, _settings.Current.VolumePollSeconds);
+        if (Interlocked.Exchange(ref _pollSeconds, seconds) == seconds)
+        {
+            return;
+        }
+
+        var period = seconds == 0 ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(seconds);
+        _pollTimer.Change(period, period);
+    }
+
+    // Light polling: picks up changes made with the monitor's own buttons or by another machine. Skipped while
+    // the user is pressing keys (we know the value then) and while the monitor isn't answering (the probe handles that).
+    private void OnPoll()
+    {
+        var last = Interlocked.Read(ref _lastActivity);
+        if (_mapper.Current is null
+            || !IsTargetResponding
+            || (last != 0 && _timeProvider.GetElapsedTime(last) < TimeSpan.FromSeconds(Volatile.Read(ref _pollSeconds))))
+        {
+            return;
+        }
+
+        PostRefresh();
+    }
+
     // The usable range may have changed, which changes what the current raw value means on the 0–100 scale.
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
+        UpdatePollTimer();
         if (_mapper.Current is not null)
         {
             PostRefresh();

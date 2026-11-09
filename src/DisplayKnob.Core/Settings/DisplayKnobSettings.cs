@@ -24,6 +24,18 @@ public sealed record DisplayKnobSettings
     /// <summary>Volume step per key press, in percent of the user scale. Shift/Alt + key always steps by 1.</summary>
     public int VolumeStep { get; init; } = 2;
 
+    /// <summary>
+    /// Apply changes of the Windows volume (wheel over the Windows volume icon, the Quick Settings slider,
+    /// other apps) to the monitor, then return the Windows volume to its rest level.
+    /// </summary>
+    public bool MirrorWindowsVolume { get; init; } = true;
+
+    /// <summary>
+    /// Re-read the monitor's volume this often (seconds) while it is the target, so changes made with the
+    /// monitor's buttons or from another machine show up. 0 turns polling off.
+    /// </summary>
+    public int VolumePollSeconds { get; init; } = 10;
+
     /// <summary>Show the on-screen volume indicator when the volume changes.</summary>
     public bool ShowOsd { get; init; } = true;
 
