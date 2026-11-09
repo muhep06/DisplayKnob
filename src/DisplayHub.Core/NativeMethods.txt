@@ -1,0 +1,12 @@
+// dxva2: DDC/CI over physical monitor handles
+GetNumberOfPhysicalMonitorsFromHMONITOR
+GetPhysicalMonitorsFromHMONITOR
+DestroyPhysicalMonitors
+GetVCPFeatureAndVCPFeatureReply
+SetVCPFeature
+GetCapabilitiesStringLength
+CapabilitiesRequestAndCapabilitiesReply
+
+// user32: monitor enumeration
+EnumDisplayMonitors
+GetMonitorInfo

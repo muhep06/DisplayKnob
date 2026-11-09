@@ -1,0 +1,24 @@
+using System.Globalization;
+using Serilog;
+using Serilog.Core;
+
+namespace DisplayHub.App;
+
+internal static class LoggingSetup
+{
+    public static string LogDirectory { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "DisplayHub",
+        "logs");
+
+    public static Logger CreateLogger() =>
+        new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(
+                Path.Combine(LogDirectory, "displayhub-.log"),
+                rollingInterval: RollingInterval.Day,
+                formatProvider: CultureInfo.InvariantCulture,
+                retainedFileCountLimit: 14,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+}
