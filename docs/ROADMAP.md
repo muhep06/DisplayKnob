@@ -12,11 +12,11 @@
 **Done when:** `dotnet build` and `dotnet test` pass and the app starts with only a tray icon (no main window).
 
 ### M1. DDC layer + probe
-- [ ] `IMonitorController` (Get/Set VCP, capabilities string, Id, DisplayName)
-- [ ] `DxvaMonitorController` over dxva2 (GetPhysicalMonitorsFromHMONITOR, GetVCPFeatureAndVCPFeatureReply, SetVCPFeature, capabilities)
-- [ ] `MonitorRegistry`: enumerate, build stable IDs (device path + EDID), dispose handles
-- [ ] Per-monitor DDC worker with coalescing queue + retry
-- [ ] Tray menu → "Probe monitors": logs each monitor's ID, name, capabilities, current 0x10/0x62/0x8D values
+- [x] `IMonitorController` (Get/Set VCP, capabilities string, Id, DisplayName)
+- [x] `DxvaMonitorController` over dxva2 (GetPhysicalMonitorsFromHMONITOR, GetVCPFeatureAndVCPFeatureReply, SetVCPFeature, capabilities)
+- [x] `MonitorRegistry`: enumerate, build stable IDs (device path + EDID), dispose handles
+- [x] Per-monitor DDC worker with coalescing queue + retry
+- [x] Tray menu → "Probe monitors": logs each monitor's ID, name, capabilities, current 0x10/0x62/0x8D values
 
 **Manual test:** run the probe with the monitor connected directly and through a KVM; compare the logs.
 
