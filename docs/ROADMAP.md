@@ -27,12 +27,12 @@
 - [x] Target follows the default render endpoint (whichever monitor is playing audio gets controlled)
 
 ### M3. Keyboard hook → DDC volume
-- [ ] `KeyboardHookService` on a dedicated thread with a message loop (WH_KEYBOARD_LL)
-- [ ] Swallow VK_VOLUME_UP/DOWN/MUTE only when the default endpoint maps to a DDC-volume monitor (see [ARCHITECTURE.md](ARCHITECTURE.md), rule 5)
-- [ ] `HookVolumeSource : IVolumeSource`. Step size setting (default 2), read-before-first-step sync
-- [ ] Mute via 0x8D with emulation fallback
-- [ ] Shift/Alt + volume key = fine step (1), mirroring macOS
-- [ ] Per-monitor usable range (min/max): the 0–100 user scale maps onto the monitor's useful VCP range
+- [x] `KeyboardHookService` on a dedicated thread with a message loop (WH_KEYBOARD_LL)
+- [x] Swallow VK_VOLUME_UP/DOWN/MUTE only when the default endpoint maps to a DDC-volume monitor (see [ARCHITECTURE.md](ARCHITECTURE.md), rule 5)
+- [x] `HookVolumeSource : IVolumeSource`. Step size setting (default 2), read-before-first-step sync
+- [x] Mute via 0x8D with emulation fallback
+- [x] Shift/Alt + volume key = fine step (1), mirroring macOS
+- [x] Per-monitor usable range (min/max): the 0–100 user scale maps onto the monitor's useful VCP range
 - [ ] Mouse wheel over the tray icon steps the volume (same pipeline as the keys)
 
 **Manual test:** with HDMI/DP audio as the default device, the keys change the monitor volume. With headphones selected, the keys behave normally. Holding the key down is smooth with no lag.
