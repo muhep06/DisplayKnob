@@ -1,6 +1,7 @@
 using DisplayKnob.App.Tray;
 using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Displays;
+using DisplayKnob.Core.Volume;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Serilog;
@@ -45,6 +46,8 @@ public partial class App : Application
             // The mapper subscribes to audio/monitor changes on construction, so create it before the first refresh.
             services.GetRequiredService<AudioMonitorMapper>();
             await services.GetRequiredService<MonitorRegistry>().RefreshAsync();
+
+            services.GetRequiredService<IVolumeSource>().Start(services.GetRequiredService<IVolumeCommandSink>());
         }
         catch (Exception ex)
         {

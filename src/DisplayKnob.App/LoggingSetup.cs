@@ -14,6 +14,7 @@ internal static class LoggingSetup
     public static Logger CreateLogger() =>
         new LoggerConfiguration()
             .MinimumLevel.Debug()
+            .Enrich.FromLogContext()
             .WriteTo.File(
                 Path.Combine(LogDirectory, "displayknob-.log"),
                 rollingInterval: RollingInterval.Day,

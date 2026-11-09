@@ -1,7 +1,9 @@
 using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Ddc;
 using DisplayKnob.Core.Displays;
+using DisplayKnob.Core.Input;
 using DisplayKnob.Core.Settings;
+using DisplayKnob.Core.Volume;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -32,6 +34,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISettingsStore>(sp => new JsonSettingsStore(JsonSettingsStore.DefaultPath, sp.GetRequiredService<ILogger>()));
         services.AddSingleton<IAudioEndpointWatcher, NAudioEndpointWatcher>();
         services.AddSingleton<AudioMonitorMapper>();
+        services.AddSingleton<VolumeController>();
+        services.AddSingleton<IVolumeCommandSink>(sp => sp.GetRequiredService<VolumeController>());
+        services.AddSingleton<KeyboardHookService>();
+        services.AddSingleton<IVolumeSource, HookVolumeSource>();
 
         return services;
     }

@@ -90,7 +90,7 @@ public sealed class AudioMonitorMapper : IDisposable
 
         if (target is null)
         {
-            _logger.Information("Volume keys: pass through (default audio output {Endpoint} is not a DDC monitor)", _watcher.DefaultRenderEndpoint?.FriendlyName ?? "(none)");
+            _logger.Information("Volume keys: pass through (default audio output {Endpoint} is not a DDC-volume monitor)", _watcher.DefaultRenderEndpoint?.FriendlyName ?? "(none)");
         }
         else
         {
@@ -105,6 +105,12 @@ public sealed class AudioMonitorMapper : IDisposable
     }
 
     private VolumeTarget? Resolve()
+    {
+        var target = ResolveMapping();
+        return target is not null && _settings.Current.ForMonitor(target.Monitor.Identity.Key).DdcVolumeEnabled ? target : null;
+    }
+
+    private VolumeTarget? ResolveMapping()
     {
         var endpoint = _watcher.DefaultRenderEndpoint;
         if (endpoint is null)

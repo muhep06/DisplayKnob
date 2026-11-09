@@ -20,4 +20,14 @@ public sealed record DisplayKnobSettings
     /// volume at 100% and unmuted so the monitor's hardware volume is the only attenuation.
     /// </summary>
     public bool PinEndpointVolume { get; init; } = true;
+
+    /// <summary>Volume step per key press, in percent of the user scale. Shift/Alt + key always steps by 1.</summary>
+    public int VolumeStep { get; init; } = 2;
+
+    /// <summary>Per-monitor settings keyed by monitor identity key.</summary>
+    public IReadOnlyDictionary<string, MonitorSettings> Monitors { get; init; } = new Dictionary<string, MonitorSettings>();
+
+    /// <summary>Settings for a monitor, or defaults if none are saved.</summary>
+    public MonitorSettings ForMonitor(string monitorKey) =>
+        Monitors.TryGetValue(monitorKey, out var settings) ? settings : MonitorSettings.Default;
 }

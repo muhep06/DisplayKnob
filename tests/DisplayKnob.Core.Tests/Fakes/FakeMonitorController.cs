@@ -40,6 +40,14 @@ internal sealed class FakeMonitorController : IMonitorController
 
     public IReadOnlyList<(byte Code, uint Value)> Writes => [.. _writes];
 
+    /// <summary>Codes whose writes are acknowledged but ignored (some monitors do this).</summary>
+    public HashSet<byte> IgnoredWriteCodes { get; } = [];
+
+    /// <summary>Maps a written value to what the monitor then reports (e.g. Samsung reports 0 after unmute = 2).</summary>
+    public Func<byte, uint, uint>? ReportedValueAfterWrite { get; set; }
+
+    public uint? GetCurrent(byte code) => _values.TryGetValue(code, out var v) ? v.Current : null;
+
     public void SetValue(byte code, uint current, uint maximum = 100) => _values[code] = new VcpValue(current, maximum);
 
     public bool TryGetVcp(byte code, out VcpValue value)
@@ -56,8 +64,13 @@ internal sealed class FakeMonitorController : IMonitorController
         }
 
         _writes.Enqueue((code, value));
+        if (IgnoredWriteCodes.Contains(code))
+        {
+            return true;
+        }
+
         var max = _values.TryGetValue(code, out var existing) ? existing.Maximum : 100;
-        _values[code] = new VcpValue(value, max);
+        _values[code] = new VcpValue(ReportedValueAfterWrite?.Invoke(code, value) ?? value, max);
         return true;
     }
 

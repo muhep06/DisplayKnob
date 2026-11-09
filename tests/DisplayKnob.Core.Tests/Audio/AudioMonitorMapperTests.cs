@@ -100,6 +100,22 @@ public sealed class AudioMonitorMapperTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task DdcVolumeDisabledForMonitor_PassesThrough()
+    {
+        await _registry.RefreshAsync(Ct);
+        _watcher.SetDefault(s_monitorAudio);
+        using var mapper = CreateMapper();
+        var samsung = _registry.Monitors.Single(m => m.DisplayName == "S34C65xU");
+
+        _settings.Update(s => s with
+        {
+            Monitors = new Dictionary<string, Core.Settings.MonitorSettings> { [samsung.Identity.Key] = new() { DdcVolumeEnabled = false } },
+        });
+
+        Assert.Null(mapper.Current);
+    }
+
+    [Fact]
     public async Task PinEndpointVolume_On_PinsMappedEndpointOnly()
     {
         await _registry.RefreshAsync(Ct);
