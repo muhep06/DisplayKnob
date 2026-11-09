@@ -26,9 +26,10 @@ public sealed record DisplayKnobSettings
 
     /// <summary>
     /// Apply changes of the Windows volume (wheel over the Windows volume icon, the Quick Settings slider,
-    /// other apps) to the monitor, then return the Windows volume to its rest level.
+    /// other apps) to the monitor, then return the Windows volume to its rest level. Off by default: the Windows
+    /// volume UI then shows the rest level (98) instead of the monitor's volume, which is confusing.
     /// </summary>
-    public bool MirrorWindowsVolume { get; init; } = true;
+    public bool MirrorWindowsVolume { get; init; }
 
     /// <summary>
     /// Re-read the monitor's volume this often (seconds) while it is the target, so changes made with the

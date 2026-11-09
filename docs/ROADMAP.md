@@ -33,7 +33,7 @@
 - [x] Mute via 0x8D with emulation fallback
 - [x] Shift/Alt + volume key = fine step (1), mirroring macOS
 - [x] Per-monitor usable range (min/max): the 0–100 user scale maps onto the monitor's useful VCP range
-- [ ] Mouse wheel over the tray icon steps the volume (same pipeline as the keys)
+- [x] Mouse wheel over the tray icon steps the volume (same pipeline as the keys)
 
 **Manual test:** with HDMI/DP audio as the default device, the keys change the monitor volume. With headphones selected, the keys behave normally. Holding the key down is smooth with no lag.
 
@@ -44,13 +44,13 @@
 - [x] Tray icon reflects the current level and mute state
 
 ### M5. Robustness
-- [ ] Hotplug / KVM switch / sleep-resume re-enumeration
-- [ ] Pick up external volume changes (another machine, monitor buttons): re-read 0x62 after KVM switch / resume; optional light polling
-- [ ] Hook health check (re-install if removed)
-- [ ] Graceful degradation when DDC fails (fall back to pass-through, log once, tray badge)
+- [x] Hotplug / KVM switch / sleep-resume re-enumeration
+- [x] Pick up external volume changes (another machine, monitor buttons): re-read 0x62 after KVM switch / resume; optional light polling
+- [x] Hook health check (re-installed after resume and every 10 minutes; Windows offers no way to ask)
+- [x] Graceful degradation when DDC fails (fall back to pass-through, log once, tray badge)
 
 ### M6. Settings + tray UX
-- [ ] Settings window: monitors list, per-monitor "DDC volume" toggle, endpoint mapping, step size, start with Windows (HKCU Run)
+- [ ] Settings window: monitors list, per-monitor "DDC volume" toggle, endpoint mapping, step size, volume polling interval, "Windows volume controls the monitor" (mirror, off by default), start with Windows (HKCU Run)
 - [ ] Tray flyout: per-monitor volume + brightness sliders
 
 ### M7. Release
@@ -63,7 +63,7 @@
 - Volume curve (linear / logarithmic feel)
 - Volume cap (max level) per monitor
 - "All monitors" mode: step every DDC-volume monitor together
-- Experimental: mirror the Windows volume slider to DDC while pinning the endpoint at 100% (watch for feedback loops and flyout flicker)
+- Mirror the Windows volume UI to DDC: implemented behind `mirrorWindowsVolume` (off by default; the Windows UI then shows the 98% rest level). Needs a settings toggle (M6)
 
 ## v0.3+
 - Brightness/contrast hotkeys, input source switching (VCP 0x60), per-monitor profiles

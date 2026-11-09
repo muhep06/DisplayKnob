@@ -24,6 +24,7 @@ public sealed class EndpointVolumeMirrorTests : IAsyncDisposable
 
     public EndpointVolumeMirrorTests()
     {
+        _settings.Update(s => s with { MirrorWindowsVolume = true }); // Off by default.
         _registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [new FakeMonitorController("S34C65xU")]), TimeProvider.System, new DdcWorkerOptions(1, TimeSpan.Zero), Logger.None);
         _mapper = new AudioMonitorMapper(_watcher, _registry, _settings, Logger.None);
         _mirror = new EndpointVolumeMirror(_watcher, _mapper, _sink, _settings, _time, Logger.None);
