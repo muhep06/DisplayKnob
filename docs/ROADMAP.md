@@ -21,10 +21,10 @@
 **Manual test:** run the probe with the monitor connected directly and through a KVM; compare the logs.
 
 ### M2. Audio endpoint awareness
-- [ ] `AudioEndpointWatcher`: default render endpoint, changes (IMMNotificationClient)
-- [ ] Endpoint ↔ monitor auto-match by name; persisted override
-- [ ] Optional setting: pin the Windows endpoint volume of a mapped monitor endpoint to 100%
-- [ ] Target follows the default render endpoint (whichever monitor is playing audio gets controlled)
+- [x] `AudioEndpointWatcher`: default render endpoint, changes (IMMNotificationClient)
+- [x] Endpoint ↔ monitor auto-match by name; persisted override
+- [x] Optional setting: pin the Windows endpoint volume of a mapped monitor endpoint to 100%
+- [x] Target follows the default render endpoint (whichever monitor is playing audio gets controlled)
 
 ### M3. Keyboard hook → DDC volume
 - [ ] `KeyboardHookService` on a dedicated thread with a message loop (WH_KEYBOARD_LL)
