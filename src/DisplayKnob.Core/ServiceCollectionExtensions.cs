@@ -1,3 +1,5 @@
+using DisplayKnob.Core.Ddc;
+using DisplayKnob.Core.Displays;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DisplayKnob.Core;
@@ -10,6 +12,9 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Adds all Core services. The host must register a Serilog <c>ILogger</c> separately.
     /// </summary>
+    /// <remarks>
+    /// Some services are only <see cref="IAsyncDisposable"/>; dispose the provider with <c>DisposeAsync</c>.
+    /// </remarks>
     /// <param name="services">The service collection to add to.</param>
     /// <returns>The same service collection, for chaining.</returns>
     public static IServiceCollection AddDisplayKnobCore(this IServiceCollection services)
@@ -17,6 +22,10 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(DdcWorkerOptions.Default);
+        services.AddSingleton<IMonitorEnumerator, DxvaMonitorEnumerator>();
+        services.AddSingleton<MonitorRegistry>();
+        services.AddSingleton<MonitorProbe>();
 
         return services;
     }

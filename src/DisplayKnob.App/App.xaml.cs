@@ -30,16 +30,20 @@ public partial class App : Application
         _services = Composition.Build(Log.Logger);
 
         _tray = _services.GetRequiredService<TrayIconHost>();
-        _tray.ExitRequested += (_, _) => Shutdown();
+        _tray.ExitRequested += async (_, _) => await ShutdownAsync();
         _tray.Show();
     }
 
-    private void Shutdown()
+    private async Task ShutdownAsync()
     {
         Log.Information("DisplayKnob exiting");
 
-        _tray?.Dispose();
-        _services?.Dispose();
+        // The provider owns the tray icon and Core services (some are IAsyncDisposable only).
+        if (_services is not null)
+        {
+            await _services.DisposeAsync();
+        }
+
         Log.CloseAndFlush();
 
         Exit();
