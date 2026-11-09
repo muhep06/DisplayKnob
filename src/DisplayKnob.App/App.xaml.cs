@@ -1,5 +1,6 @@
 using DisplayKnob.App.Osd;
 using DisplayKnob.App.Tray;
+using DisplayKnob.App.Views;
 using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Displays;
 using DisplayKnob.Core.Volume;
@@ -38,6 +39,13 @@ public partial class App : Application
         _tray.Show();
         _services.GetRequiredService<TrayWheelHandler>();
 
+        var settingsWindow = _services.GetRequiredService<SettingsWindowHost>();
+        var flyout = _services.GetRequiredService<TrayFlyoutPresenter>();
+        _tray.SettingsRequested += (_, _) => settingsWindow.Show();
+        _tray.FlyoutRequested += (_, _) => flyout.Toggle(_tray.IconId);
+        flyout.SettingsRequested += (_, _) => settingsWindow.Show();
+        OpenWindowIfRequested(settingsWindow, flyout, _tray);
+
         // UI-thread objects must be created here, not lazily from a background thread.
         var osd = _services.GetRequiredService<OsdPresenter>();
         PreviewOsdIfRequested(osd);
@@ -60,6 +68,28 @@ public partial class App : Application
         var level = int.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ? parsed : 42;
         osd.Preview(Math.Clamp(level, 0, 100), muted);
     }
+
+    // Debug builds only: DISPLAYKNOB_OPEN=settings or flyout opens that window at startup (for checking the look).
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void OpenWindowIfRequested(SettingsWindowHost settings, TrayFlyoutPresenter flyout, TrayIconHost tray)
+    {
+        switch (Environment.GetEnvironmentVariable("DISPLAYKNOB_OPEN"))
+        {
+            case "settings":
+                settings.Show();
+                break;
+            case "flyout":
+                // After the first monitor enumeration, so there is something to show.
+                s_debugTimer = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+                s_debugTimer.Interval = TimeSpan.FromSeconds(2);
+                s_debugTimer.IsRepeating = false;
+                s_debugTimer.Tick += (_, _) => flyout.Toggle(tray.IconId);
+                s_debugTimer.Start();
+                break;
+        }
+    }
+
+    private static Microsoft.UI.Dispatching.DispatcherQueueTimer? s_debugTimer; // Kept alive until it fires.
 
     private static async Task StartCoreAsync(IServiceProvider services)
     {

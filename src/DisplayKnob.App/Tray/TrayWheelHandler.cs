@@ -1,9 +1,7 @@
 using DisplayKnob.Core.Platform;
 using DisplayKnob.Core.Volume;
 using Windows.Win32;
-using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
-using Windows.Win32.UI.Shell;
 
 namespace DisplayKnob.App.Tray;
 
@@ -62,22 +60,8 @@ internal sealed class TrayWheelHandler : IDisposable
         }
     }
 
-    private static unsafe bool IsOverIcon(Guid iconId, int x, int y)
-    {
-        var identifier = new NOTIFYICONIDENTIFIER
-        {
-            cbSize = (uint)sizeof(NOTIFYICONIDENTIFIER),
-            guidItem = iconId,
-        };
-
-        // Fails (e.g. E_FAIL) while the icon is hidden in the overflow area; then it simply isn't under the cursor.
-        if (PInvoke.Shell_NotifyIconGetRect(in identifier, out RECT rect).Failed)
-        {
-            return false;
-        }
-
-        return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
-    }
+    private static bool IsOverIcon(Guid iconId, int x, int y) =>
+        TrayIconLocator.TryGetRect(iconId, out var rect) && x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
 
     // High bit set = key currently down.
     private static bool IsFineModifierDown() =>

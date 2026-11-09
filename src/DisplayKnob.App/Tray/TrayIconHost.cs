@@ -43,6 +43,12 @@ internal sealed class TrayIconHost : IDisposable
             ?? throw new InvalidOperationException("TrayIconHost must be created on the UI thread.");
 
         var menu = new MenuFlyout();
+        menu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "Settings",
+            Command = new RelayCommand(() => SettingsRequested?.Invoke(this, EventArgs.Empty)),
+        });
+        menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem { Text = "Probe monitors", Command = new AsyncRelayCommand(ProbeAsync) });
         menu.Items.Add(new MenuFlyoutItem { Text = "Open log folder", Command = new RelayCommand(OpenLogFolder) });
         menu.Items.Add(new MenuFlyoutSeparator());
@@ -68,6 +74,8 @@ internal sealed class TrayIconHost : IDisposable
             ContextMenuMode = ContextMenuMode.PopupMenu,
             ContextFlyout = menu,
             IconSource = _iconSource,
+            LeftClickCommand = new RelayCommand(() => FlyoutRequested?.Invoke(this, EventArgs.Empty)),
+            NoLeftClickDelay = true, // We don't use double-click; don't wait to rule it out.
         };
 
         _volume.VolumeChanged += OnVolumeChanged;
@@ -76,6 +84,11 @@ internal sealed class TrayIconHost : IDisposable
     }
 
     public event EventHandler? ExitRequested;
+
+    public event EventHandler? SettingsRequested;
+
+    /// <summary>The icon was left-clicked: show or hide the flyout.</summary>
+    public event EventHandler? FlyoutRequested;
 
     /// <summary>The shell's id for the icon (set once shown). Readable from any thread.</summary>
     public Guid? IconId => _iconId;

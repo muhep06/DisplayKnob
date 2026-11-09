@@ -24,3 +24,7 @@ Shell_NotifyIconGetRect
 NOTIFYICONIDENTIFIER
 GetAsyncKeyState
 VIRTUAL_KEY
+
+// Settings window and tray flyout: sizing, bringing to the foreground
+GetDpiForWindow
+SetForegroundWindow

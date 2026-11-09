@@ -1,5 +1,7 @@
 using DisplayKnob.App.Osd;
 using DisplayKnob.App.Tray;
+using DisplayKnob.App.ViewModels;
+using DisplayKnob.App.Views;
 using DisplayKnob.Core;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,6 +20,9 @@ internal static class Composition
         services.AddDisplayKnobCore();
         services.AddSingleton<TrayIconHost>();
         services.AddSingleton<TrayWheelHandler>();
+        services.AddSingleton<TrayFlyoutViewModel>();
+        services.AddSingleton<TrayFlyoutPresenter>();
+        services.AddSingleton<SettingsWindowHost>();
         services.AddSingleton<OsdPresenter>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
