@@ -67,6 +67,7 @@ public partial class App : Application
         {
             // The mapper subscribes to audio/monitor changes on construction, so create it before the first refresh.
             services.GetRequiredService<AudioMonitorMapper>();
+            services.GetRequiredService<EndpointVolumeMirror>();
             await services.GetRequiredService<MonitorRegistry>().RefreshAsync();
 
             // From here on, display changes, KVM switches and resume re-enumerate the monitors.

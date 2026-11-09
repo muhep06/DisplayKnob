@@ -59,15 +59,23 @@ public sealed class AudioMonitorMapper : IDisposable
     }
 
     /// <summary>
-    /// Sets the Windows volume of the target's audio endpoint back to 100% if pinning is enabled
-    /// (e.g. after the volume keys passed through to Windows while DDC was unavailable).
+    /// Windows volume kept on a mirrored endpoint. Not 100: at 100 a "volume up" from the Windows UI changes
+    /// nothing, so it couldn't be noticed. 98% is about -0.3 dB, inaudible.
+    /// </summary>
+    public const int MirrorRestLevel = 98;
+
+    /// <summary>
+    /// Sets the Windows volume of the target's audio endpoint back to its pinned level (100%, or
+    /// <see cref="MirrorRestLevel"/> when mirroring) and unmutes it, if pinning or mirroring is enabled.
+    /// Used after the volume keys passed through to Windows while DDC was unavailable, and by the mirror.
     /// </summary>
     public void EnsureEndpointPinned()
     {
         // Software attenuation would stack with the monitor's volume; keep it out of the way.
-        if (Current is { } target && _settings.Current.PinEndpointVolume)
+        var settings = _settings.Current;
+        if (Current is { } target && (settings.PinEndpointVolume || settings.MirrorWindowsVolume))
         {
-            _watcher.TryPinVolumeToMax(target.Endpoint.Id);
+            _watcher.TrySetVolume(target.Endpoint.Id, settings.MirrorWindowsVolume ? MirrorRestLevel : 100);
         }
     }
 

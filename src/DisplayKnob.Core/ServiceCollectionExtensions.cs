@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AudioMonitorMapper>();
         services.AddSingleton<VolumeController>();
         services.AddSingleton<IVolumeCommandSink>(sp => sp.GetRequiredService<VolumeController>());
+        services.AddSingleton<EndpointVolumeMirror>();
         services.AddSingleton<KeyboardHookService>();
         services.AddSingleton<IVolumeSource, HookVolumeSource>();
 

@@ -131,7 +131,7 @@ public sealed class AudioMonitorMapperTests : IAsyncDisposable
     public async Task PinEndpointVolume_Off_DoesNotPin()
     {
         await _registry.RefreshAsync(Ct);
-        _settings.Update(s => s with { PinEndpointVolume = false });
+        _settings.Update(s => s with { PinEndpointVolume = false, MirrorWindowsVolume = false });
         _watcher.SetDefault(s_monitorAudio);
         using var mapper = CreateMapper();
 
