@@ -38,10 +38,10 @@
 **Manual test:** with HDMI/DP audio as the default device, the keys change the monitor volume. With headphones selected, the keys behave normally. Holding the key down is smooth with no lag.
 
 ### M4. OSD and tray feedback
-- [ ] Borderless, topmost, no-activate, click-through WinUI window, bottom-center of the target monitor
-- [ ] Shows icon + level bar + monitor name, fades after ~1.5 s, respects light/dark theme
-- [ ] Never steals focus (WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW)
-- [ ] Tray icon reflects the current level and mute state
+- [x] Borderless, topmost, no-activate, click-through WinUI window, bottom-center of the target monitor
+- [x] Shows icon + level bar + monitor name, fades after ~1.5 s, respects light/dark theme
+- [x] Never steals focus (WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW)
+- [x] Tray icon reflects the current level and mute state
 
 ### M5. Robustness
 - [ ] Hotplug / KVM switch / sleep-resume re-enumeration
