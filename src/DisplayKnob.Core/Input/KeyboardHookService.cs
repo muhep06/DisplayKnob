@@ -18,6 +18,8 @@ namespace DisplayKnob.Core.Input;
 /// </remarks>
 internal sealed class KeyboardHookService : IDisposable
 {
+    private const uint ReinstallMessage = PInvoke.WM_APP + 1;
+
     private readonly ILogger _logger;
     private readonly HOOKPROC _hookProc; // Kept in a field so the GC can't collect the delegate while Windows holds it.
     private readonly bool[] _swallowedDown = new bool[3]; // Indexed by VolumeKey; only touched on the hook thread.
@@ -65,6 +67,18 @@ internal sealed class KeyboardHookService : IDisposable
         _logger.Information("Keyboard hook installed");
     }
 
+    /// <summary>
+    /// Replaces the hook with a fresh one. Windows silently removes a low-level hook whose callback once took
+    /// too long (e.g. while the system was busy or resuming) and never tells us, so this is done periodically.
+    /// </summary>
+    public void Reinstall()
+    {
+        if (_thread is not null)
+        {
+            PInvoke.PostThreadMessage(_threadId, ReinstallMessage, default, default);
+        }
+    }
+
     public void Dispose()
     {
         if (_thread is null)
@@ -96,14 +110,34 @@ internal sealed class KeyboardHookService : IDisposable
         try
         {
             // Low-level hook callbacks are delivered through this thread's message loop.
-            while (PInvoke.GetMessage(out _, HWND.Null, 0, 0) > 0)
+            while (PInvoke.GetMessage(out var msg, HWND.Null, 0, 0) > 0)
             {
+                if (msg.message == ReinstallMessage)
+                {
+                    hook = Rehook(hook);
+                }
             }
         }
         finally
         {
             PInvoke.UnhookWindowsHookEx(hook);
         }
+    }
+
+    // Runs on the hook thread. No key event can slip between the two calls: hook callbacks are delivered through
+    // this same thread's message loop, which is busy here.
+    private HHOOK Rehook(HHOOK current)
+    {
+        var fresh = PInvoke.SetWindowsHookEx(WINDOWS_HOOK_ID.WH_KEYBOARD_LL, _hookProc, PInvoke.GetModuleHandle((PCWSTR)null), 0);
+        if (fresh.IsNull)
+        {
+            _logger.Warning("Re-installing the keyboard hook failed ({Error}); keeping the current one", Marshal.GetLastPInvokeError());
+            return current;
+        }
+
+        PInvoke.UnhookWindowsHookEx(current);
+        _logger.Debug("Keyboard hook re-installed");
+        return fresh;
     }
 
     // Runs on the hook thread for every key event system-wide. Must be fast.

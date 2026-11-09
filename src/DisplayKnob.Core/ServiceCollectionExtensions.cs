@@ -2,6 +2,7 @@ using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Ddc;
 using DisplayKnob.Core.Displays;
 using DisplayKnob.Core.Input;
+using DisplayKnob.Core.Platform;
 using DisplayKnob.Core.Settings;
 using DisplayKnob.Core.Volume;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,8 +29,12 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(DdcWorkerOptions.Default);
+        services.AddSingleton<SystemEventWindow>();
+        services.AddSingleton<ISystemEventSource>(sp => sp.GetRequiredService<SystemEventWindow>());
+        services.AddSingleton<IMouseWheelSource>(sp => sp.GetRequiredService<SystemEventWindow>());
         services.AddSingleton<IMonitorEnumerator, DxvaMonitorEnumerator>();
         services.AddSingleton<MonitorRegistry>();
+        services.AddSingleton<DisplayChangeWatcher>();
         services.AddSingleton<MonitorProbe>();
         services.AddSingleton<ISettingsStore>(sp => new JsonSettingsStore(JsonSettingsStore.DefaultPath, sp.GetRequiredService<ILogger>()));
         services.AddSingleton<IAudioEndpointWatcher, NAudioEndpointWatcher>();
