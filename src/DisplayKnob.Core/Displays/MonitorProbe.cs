@@ -70,12 +70,13 @@ public sealed class MonitorProbe
     private static string Format(VcpValue? value) =>
         value is { } v ? string.Create(CultureInfo.InvariantCulture, $"{v.Current}/{v.Maximum}") : "no reply";
 
-    // MCCS: 1 = muted, 2 = unmuted.
+    // MCCS: 1 = muted, 2 = unmuted. Some monitors (e.g. Samsung S34C65xU) report 0 for unmuted.
     private static string FormatMute(VcpValue? value) => value?.Current switch
     {
         null => "no reply",
         1 => "muted (1)",
         2 => "unmuted (2)",
+        0 => "unmuted (0, non-standard)",
         var other => string.Create(CultureInfo.InvariantCulture, $"unexpected value {other}"),
     };
 }

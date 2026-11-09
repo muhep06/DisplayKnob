@@ -70,7 +70,7 @@ docs/
 5. **Only swallow volume keys when it makes sense:** the default render endpoint is mapped to a DDC-capable monitor that has "DDC volume" enabled in settings. Otherwise the key passes through untouched.
 6. **Audio endpoint ↔ monitor mapping:** auto-match the endpoint FriendlyName against the monitor's EDID name; the user can override it in settings.
 7. On first use after a (re)connect, **read** the current VCP 0x62 value with GetVCPFeatureAndVCPFeatureReply before stepping, because another machine (e.g. the Mac) may have changed it.
-8. **Mute:** try VCP 0x8D. If the monitor doesn't support it, emulate mute by remembering the volume and setting 0.
+8. **Mute:** try VCP 0x8D. If the monitor doesn't support it, emulate mute by remembering the volume and setting 0. Mute is independent of volume (0x62 keeps its value while muted). MCCS says 1 = muted, 2 = unmuted, but some monitors report **0** for unmuted (seen on Samsung S34C65xU), so treat any value other than 1 as unmuted, and verify a write by reading it back.
 9. **Known limitation:** when an elevated window has focus, the hook may not receive keys (UIPI). The fix is `uiAccess`, which needs signing and a Program Files install; planned for later.
 
 ## References
