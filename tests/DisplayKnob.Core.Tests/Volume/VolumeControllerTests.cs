@@ -104,7 +104,7 @@ public sealed class VolumeControllerTests : IAsyncDisposable
     {
         // Raw 0..50 is the usable range; raw 30 is 60% of it.
         await StartAsync();
-        SetMonitorSettings(new MonitorSettings { VolumeMax = 50 });
+        await AfterRefreshAsync(_controller, () => SetMonitorSettings(new MonitorSettings { VolumeMax = 50 }));
         var levels = new List<int>();
         _controller.VolumeChanged += (_, e) => levels.Add(e.Level);
 
@@ -179,7 +179,7 @@ public sealed class VolumeControllerTests : IAsyncDisposable
         using var mapper = new AudioMonitorMapper(_watcher, registry, _settings, Logger.None);
         await using var controller = new VolumeController(mapper, _settings, _time, Logger.None);
         await registry.RefreshAsync(Ct);
-        _watcher.SetDefault(s_monitorAudio);
+        await AfterRefreshAsync(controller, () => _watcher.SetDefault(s_monitorAudio));
 
         await controller.ProcessAsync(new VolumeCommand(VolumeAction.ToggleMute), Ct);
         await FlushAsync(registry);
@@ -238,10 +238,106 @@ public sealed class VolumeControllerTests : IAsyncDisposable
         Assert.Equal("S34C65xU", args.MonitorName);
     }
 
+    [Fact]
+    public async Task NewTarget_RereadsVolumeQuietly()
+    {
+        var changes = new List<VolumeChangedEventArgs>();
+        _controller.VolumeChanged += (_, e) => changes.Add(e);
+
+        await StartAsync();
+
+        var change = Assert.Single(changes);
+        Assert.Equal(30, change.Level);
+        Assert.False(change.UserInitiated);
+    }
+
+    [Fact]
+    public async Task KeyPress_IsUserInitiated()
+    {
+        await StartAsync();
+        var changes = new List<VolumeChangedEventArgs>();
+        _controller.VolumeChanged += (_, e) => changes.Add(e);
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.True(Assert.Single(changes).UserInitiated);
+    }
+
+    [Fact]
+    public async Task TargetNotAnswering_KeysPassThrough()
+    {
+        _monitor.FailNextCalls = int.MaxValue;
+
+        await StartAsync();
+
+        Assert.False(_controller.IsTargetResponding);
+        Assert.False(_controller.TryPost(new VolumeCommand(VolumeAction.Up)));
+    }
+
+    [Fact]
+    public async Task TargetAnswersAgain_ProbeResumesControl()
+    {
+        _monitor.FailNextCalls = int.MaxValue;
+        await StartAsync();
+        _monitor.FailNextCalls = 0;
+
+        await AfterRefreshAsync(_controller, () => _time.Advance(VolumeController.FirstProbeDelay));
+
+        Assert.True(_controller.IsTargetResponding);
+        Assert.True(_controller.TryPost(new VolumeCommand(VolumeAction.Up)));
+    }
+
+    [Fact]
+    public async Task VolumeWriteFails_KeysPassThrough()
+    {
+        await StartAsync();
+        _monitor.FailNextCalls = int.MaxValue;
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.False(_controller.IsTargetResponding);
+        Assert.False(_controller.TryPost(new VolumeCommand(VolumeAction.Up)));
+    }
+
+    [Fact]
+    public async Task KeyWhileNotAnswering_TriggersRecheck()
+    {
+        _monitor.FailNextCalls = int.MaxValue;
+        await StartAsync();
+        _monitor.FailNextCalls = 0;
+
+        await AfterRefreshAsync(_controller, () => _controller.TryPost(new VolumeCommand(VolumeAction.Up)));
+
+        Assert.True(_controller.IsTargetResponding);
+    }
+
+    // A new target triggers a background re-read; wait for it so it doesn't race the test's own commands.
     private async Task StartAsync()
     {
         await _registry.RefreshAsync(Ct);
-        _watcher.SetDefault(s_monitorAudio);
+        await AfterRefreshAsync(_controller, () => _watcher.SetDefault(s_monitorAudio));
+    }
+
+    private static async Task AfterRefreshAsync(VolumeController controller, Action trigger)
+    {
+        var refreshed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<VolumeCommand> handler = (_, c) =>
+        {
+            if (c.Action == VolumeAction.Refresh)
+            {
+                refreshed.TrySetResult();
+            }
+        };
+        controller.CommandProcessed += handler;
+        try
+        {
+            trigger();
+            await refreshed.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        }
+        finally
+        {
+            controller.CommandProcessed -= handler;
+        }
     }
 
     private async Task ProcessAsync(VolumeAction action, bool fine = false)

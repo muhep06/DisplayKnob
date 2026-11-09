@@ -1,13 +1,14 @@
 namespace DisplayKnob.Core.Volume;
 
 /// <summary>
-/// The volume state after a command was applied (for the OSD and tray icon).
+/// The volume state after a command was applied or the monitor was re-read (for the OSD and tray icon).
 /// </summary>
 public sealed class VolumeChangedEventArgs : EventArgs
 {
     /// <summary>Creates the event data.</summary>
-    public VolumeChangedEventArgs(string monitorName, string? gdiDeviceName, int level, bool muted)
+    public VolumeChangedEventArgs(string monitorName, string? gdiDeviceName, int level, bool muted, bool userInitiated = true)
     {
+        UserInitiated = userInitiated;
         MonitorName = monitorName;
         GdiDeviceName = gdiDeviceName;
         Level = level;
@@ -25,4 +26,10 @@ public sealed class VolumeChangedEventArgs : EventArgs
 
     /// <summary>Whether the monitor is muted.</summary>
     public bool Muted { get; }
+
+    /// <summary>
+    /// <see langword="true"/> when the user changed the volume (show the OSD); <see langword="false"/> when the
+    /// value was only re-read, e.g. after a KVM switch or resume (update quiet indicators only).
+    /// </summary>
+    public bool UserInitiated { get; }
 }

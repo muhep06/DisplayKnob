@@ -66,7 +66,8 @@ internal sealed class OsdPresenter : IDisposable
     // Raised on the volume controller's thread.
     private void OnVolumeChanged(object? sender, VolumeChangedEventArgs e)
     {
-        if (_settings.Current.ShowOsd)
+        // Quiet re-reads (after a KVM switch or resume) only update the tray icon.
+        if (e.UserInitiated && _settings.Current.ShowOsd)
         {
             _dispatcher.TryEnqueue(() => Show(e));
         }

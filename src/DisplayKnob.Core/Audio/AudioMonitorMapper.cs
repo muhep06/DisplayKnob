@@ -58,6 +58,19 @@ public sealed class AudioMonitorMapper : IDisposable
         _settings.Changed -= OnInputsChanged;
     }
 
+    /// <summary>
+    /// Sets the Windows volume of the target's audio endpoint back to 100% if pinning is enabled
+    /// (e.g. after the volume keys passed through to Windows while DDC was unavailable).
+    /// </summary>
+    public void EnsureEndpointPinned()
+    {
+        // Software attenuation would stack with the monitor's volume; keep it out of the way.
+        if (Current is { } target && _settings.Current.PinEndpointVolume)
+        {
+            _watcher.TryPinVolumeToMax(target.Endpoint.Id);
+        }
+    }
+
     private void OnInputsChanged(object? sender, EventArgs e) => Update();
 
     private void Update()
@@ -77,11 +90,7 @@ public sealed class AudioMonitorMapper : IDisposable
             }
         }
 
-        if (target is not null && _settings.Current.PinEndpointVolume)
-        {
-            // Software attenuation would stack with the monitor's volume; keep it out of the way.
-            _watcher.TryPinVolumeToMax(target.Endpoint.Id);
-        }
+        EnsureEndpointPinned();
 
         if (!changed)
         {

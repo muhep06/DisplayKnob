@@ -15,12 +15,24 @@ namespace DisplayKnob.Core.Volume;
 /// tracked level immediately and queue a coalesced DDC write, so holding a key never waits on the bus.</para>
 /// <para>Before the first step, and again after <see cref="ResyncAfterIdle"/> without use, the current value
 /// is read from the monitor, because another machine (e.g. a Mac on the same monitor) or the monitor's own
-/// buttons may have changed it.</para>
+/// buttons may have changed it. It is also re-read whenever the target changes (monitors re-enumerated after a
+/// display change, KVM switch or resume).</para>
+/// <para>When the target stops answering DDC, the keys pass through to Windows so volume control keeps working.
+/// The monitor is re-checked with a growing interval, and on a key press, until it answers again.</para>
 /// </remarks>
 public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
 {
     /// <summary>Re-read the monitor's volume if no command arrived for this long.</summary>
     public static readonly TimeSpan ResyncAfterIdle = TimeSpan.FromSeconds(10);
+
+    /// <summary>First re-check of a monitor that stopped answering; doubles up to <see cref="MaxProbeDelay"/>.</summary>
+    public static readonly TimeSpan FirstProbeDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>Longest interval between re-checks of a monitor that doesn't answer.</summary>
+    public static readonly TimeSpan MaxProbeDelay = TimeSpan.FromMinutes(5);
+
+    /// <summary>A key press re-checks a non-answering monitor at most this often.</summary>
+    public static readonly TimeSpan KeyProbeInterval = TimeSpan.FromSeconds(5);
 
     // MCCS 0x8D: 1 = muted, 2 = unmuted. Some monitors use (and report) 0 for unmuted.
     private const uint MuteOn = 1;
@@ -34,7 +46,13 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     private readonly Channel<VolumeCommand> _commands = Channel.CreateUnbounded<VolumeCommand>(new UnboundedChannelOptions { SingleReader = true });
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
+    private readonly Lock _healthLock = new();
+    private readonly ITimer _probeTimer;
+    private DdcWorker? _unresponsive; // The monitor that stopped answering; written under _healthLock.
+    private TimeSpan _probeDelay;
+    private long _lastKeyProbe;
     private MonitorState? _state; // Only touched by the processing loop.
+    private DdcWorker? _watchedWorker; // Only touched by the processing loop.
 
     /// <summary>Creates the controller and starts its processing loop.</summary>
     public VolumeController(AudioMonitorMapper mapper, ISettingsStore settings, TimeProvider timeProvider, ILogger logger)
@@ -48,7 +66,11 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         _settings = settings;
         _timeProvider = timeProvider;
         _logger = logger.ForContext<VolumeController>();
+        _probeDelay = FirstProbeDelay;
+        _probeTimer = _timeProvider.CreateTimer(_ => PostRefresh(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _loop = Task.Run(() => RunAsync(_stop.Token));
+        _mapper.TargetChanged += OnTargetChanged;
+        _settings.Changed += OnSettingsChanged;
     }
 
     private enum MuteMode
@@ -60,15 +82,40 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         Emulated,
     }
 
-    /// <summary>Raised after every applied command. Raised on a background thread.</summary>
+    /// <summary>Raised after every applied command and every re-read. Raised on a background thread.</summary>
     public event EventHandler<VolumeChangedEventArgs>? VolumeChanged;
+
+    /// <summary>Raised when <see cref="IsTargetResponding"/> may have changed. Raised on a background thread.</summary>
+    public event EventHandler? TargetRespondingChanged;
+
+    /// <summary>Raised after the loop finished a command (tests use it to wait for background work).</summary>
+    internal event EventHandler<VolumeCommand>? CommandProcessed;
+
+    /// <summary>
+    /// <see langword="false"/> while the current target doesn't answer DDC (the keys then pass through to Windows).
+    /// </summary>
+    public bool IsTargetResponding => _mapper.Current is not { } target || !ReferenceEquals(target.Monitor, Volatile.Read(ref _unresponsive));
 
     /// <inheritdoc/>
     public bool TryPost(VolumeCommand command)
     {
-        // Called from the keyboard hook: a volatile read and a lock-free enqueue, nothing else.
-        if (_mapper.Current is null || _stop.IsCancellationRequested)
+        // Called from the keyboard hook: volatile reads and a lock-free enqueue, nothing else.
+        if (_mapper.Current is not { } target || _stop.IsCancellationRequested)
         {
+            return false;
+        }
+
+        if (ReferenceEquals(target.Monitor, Volatile.Read(ref _unresponsive)))
+        {
+            // Let Windows handle this key, but use it as a hint to check whether the monitor is back.
+            var now = _timeProvider.GetTimestamp();
+            var last = Interlocked.Read(ref _lastKeyProbe);
+            if ((last == 0 || _timeProvider.GetElapsedTime(last, now) >= KeyProbeInterval)
+                && Interlocked.CompareExchange(ref _lastKeyProbe, now, last) == last)
+            {
+                PostRefresh();
+            }
+
             return false;
         }
 
@@ -83,10 +130,18 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
             return;
         }
 
+        _mapper.TargetChanged -= OnTargetChanged;
+        _settings.Changed -= OnSettingsChanged;
+        await _probeTimer.DisposeAsync().ConfigureAwait(false);
         _commands.Writer.TryComplete();
         await _stop.CancelAsync().ConfigureAwait(false);
         await _loop.ConfigureAwait(false);
         _stop.Dispose();
+
+        if (_watchedWorker is not null)
+        {
+            _watchedWorker.WriteFailed -= OnWriteFailed;
+        }
     }
 
     /// <summary>Applies one command. Exposed for tests; the loop calls it sequentially.</summary>
@@ -98,9 +153,16 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
             return; // The target went away between the key press and now.
         }
 
-        var state = await SyncAsync(target.Monitor, cancellationToken).ConfigureAwait(false);
+        var refresh = command.Action == VolumeAction.Refresh;
+        var state = await SyncAsync(target.Monitor, force: refresh, cancellationToken).ConfigureAwait(false);
         if (state is null)
         {
+            return;
+        }
+
+        if (refresh)
+        {
+            VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: false));
             return;
         }
 
@@ -145,6 +207,8 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
                     // A bug in one command must not stop volume control for the rest of the session.
                     _logger.Error(ex, "Volume command {Command} failed", command);
                 }
+
+                CommandProcessed?.Invoke(this, command);
             }
         }
         catch (OperationCanceledException) when (stopToken.IsCancellationRequested)
@@ -153,11 +217,12 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
     }
 
-    private async Task<MonitorState?> SyncAsync(DdcWorker monitor, CancellationToken cancellationToken)
+    private async Task<MonitorState?> SyncAsync(DdcWorker monitor, bool force, CancellationToken cancellationToken)
     {
+        WatchWrites(monitor);
+
         var previous = _state;
-        var sameMonitor = previous is not null && ReferenceEquals(previous.Monitor, monitor);
-        if (sameMonitor && _timeProvider.GetUtcNow() - previous!.LastUsed < ResyncAfterIdle) // sameMonitor implies non-null.
+        if (!force && previous is not null && ReferenceEquals(previous.Monitor, monitor) && _timeProvider.GetUtcNow() - previous.LastUsed < ResyncAfterIdle)
         {
             return previous;
         }
@@ -165,13 +230,16 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         var volume = await monitor.ReadVcpAsync(VcpCodes.AudioVolume, cancellationToken).ConfigureAwait(false);
         if (volume is not { Maximum: > 0 } v)
         {
-            _logger.Warning("Could not read the volume of {Monitor}; key ignored", monitor.DisplayName);
+            MarkUnresponsive(monitor);
             return null;
         }
 
+        MarkResponding(monitor);
         var state = new MonitorState(monitor, v.Maximum) { LastUsed = _timeProvider.GetUtcNow() };
 
-        if (sameMonitor && previous!.MuteMode == MuteMode.Emulated)
+        // Re-enumeration creates a new worker for the same monitor; compare identities so an emulated mute survives.
+        var sameMonitor = previous is not null && previous.Monitor.Identity.Key == monitor.Identity.Key;
+        if (sameMonitor && previous!.MuteMode == MuteMode.Emulated) // sameMonitor implies non-null.
         {
             // Our emulated mute leaves the volume at 0; keep the remembered level unless someone changed it since.
             state.MuteMode = MuteMode.Emulated;
@@ -196,6 +264,99 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
             state.Muted,
             state.MuteMode);
         return state;
+    }
+
+    private void OnTargetChanged(object? sender, EventArgs e)
+    {
+        // A new target (or a new worker for the same monitor after re-enumeration): its volume may have changed
+        // while we couldn't see it, e.g. on the other side of a KVM.
+        if (_mapper.Current is not null)
+        {
+            PostRefresh();
+        }
+
+        TargetRespondingChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // The usable range may have changed, which changes what the current raw value means on the 0–100 scale.
+    private void OnSettingsChanged(object? sender, EventArgs e)
+    {
+        if (_mapper.Current is not null)
+        {
+            PostRefresh();
+        }
+    }
+
+    private void PostRefresh() => _commands.Writer.TryWrite(new VolumeCommand(VolumeAction.Refresh));
+
+    private void WatchWrites(DdcWorker monitor)
+    {
+        if (ReferenceEquals(_watchedWorker, monitor))
+        {
+            return;
+        }
+
+        if (_watchedWorker is not null)
+        {
+            _watchedWorker.WriteFailed -= OnWriteFailed;
+        }
+
+        monitor.WriteFailed += OnWriteFailed;
+        _watchedWorker = monitor;
+    }
+
+    // Raised on the monitor's worker loop. Mute writes are left out: a failing 0x8D just means "emulate mute".
+    private void OnWriteFailed(object? sender, VcpWriteFailedEventArgs e)
+    {
+        if (e.Code == VcpCodes.AudioVolume && sender is DdcWorker monitor)
+        {
+            MarkUnresponsive(monitor);
+        }
+    }
+
+    private void MarkUnresponsive(DdcWorker monitor)
+    {
+        bool newOutage;
+        TimeSpan delay;
+        lock (_healthLock)
+        {
+            newOutage = !ReferenceEquals(_unresponsive, monitor);
+            _probeDelay = newOutage ? FirstProbeDelay : TimeSpan.FromTicks(Math.Min(_probeDelay.Ticks * 2, MaxProbeDelay.Ticks));
+            delay = _probeDelay;
+            Volatile.Write(ref _unresponsive, monitor);
+            _probeTimer.Change(delay, Timeout.InfiniteTimeSpan);
+        }
+
+        if (newOutage)
+        {
+            _logger.Warning("{Monitor} doesn't answer DDC; volume keys control Windows until it does", monitor.DisplayName);
+            TargetRespondingChanged?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            _logger.Debug("{Monitor} still doesn't answer DDC; next check in {Delay}", monitor.DisplayName, delay);
+        }
+    }
+
+    private void MarkResponding(DdcWorker monitor)
+    {
+        lock (_healthLock)
+        {
+            if (!ReferenceEquals(_unresponsive, monitor))
+            {
+                return;
+            }
+
+            Volatile.Write(ref _unresponsive, null);
+            _probeDelay = FirstProbeDelay;
+            _probeTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        }
+
+        _logger.Information("{Monitor} answers DDC again; volume keys control the monitor", monitor.DisplayName);
+
+        // Keys that went to Windows meanwhile may have lowered the software volume.
+        _mapper.EnsureEndpointPinned();
+        TargetRespondingChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task SetMutedAsync(MonitorState state, bool muted, CancellationToken cancellationToken)

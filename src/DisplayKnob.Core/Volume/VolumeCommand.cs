@@ -11,6 +11,9 @@ public enum VolumeAction
 
     /// <summary>Toggle mute.</summary>
     ToggleMute,
+
+    /// <summary>Re-read the monitor's volume and mute state without changing them.</summary>
+    Refresh,
 }
 
 /// <summary>

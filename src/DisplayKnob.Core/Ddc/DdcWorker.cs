@@ -26,6 +26,7 @@ public sealed class DdcWorker : IAsyncDisposable
     private readonly SemaphoreSlim _signal = new(0);
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
+    private bool _failing; // Only touched by the loop.
 
     /// <summary>
     /// Creates the worker and starts its loop. The worker takes ownership of <paramref name="monitor"/>.
@@ -57,6 +58,12 @@ public sealed class DdcWorker : IAsyncDisposable
 
         void Cancel();
     }
+
+    /// <summary>
+    /// Raised on the worker's loop when a write still fails after all retries. Writes are fire-and-forget,
+    /// so this is the only way to learn about it.
+    /// </summary>
+    public event EventHandler<VcpWriteFailedEventArgs>? WriteFailed;
 
     /// <summary>Stable identity of the monitor.</summary>
     public MonitorIdentity Identity => _monitor.Identity;
@@ -181,7 +188,10 @@ public sealed class DdcWorker : IAsyncDisposable
                 foreach (var (code, value) in writes)
                 {
                     stopToken.ThrowIfCancellationRequested();
-                    await ExecuteWithRetryAsync($"write VCP 0x{code:X2}={value}", m => m.TrySetVcp(code, value), stopToken).ConfigureAwait(false);
+                    if (!await ExecuteWithRetryAsync($"write VCP 0x{code:X2}={value}", m => m.TrySetVcp(code, value), stopToken).ConfigureAwait(false))
+                    {
+                        WriteFailed?.Invoke(this, new VcpWriteFailedEventArgs(code, value));
+                    }
                 }
 
                 foreach (var read in reads)
@@ -215,12 +225,28 @@ public sealed class DdcWorker : IAsyncDisposable
         {
             if (attempt(_monitor))
             {
+                if (_failing)
+                {
+                    _failing = false;
+                    _logger.Information("{Monitor} answers DDC again", DisplayName);
+                }
+
                 return true;
             }
 
             if (i >= _options.MaxAttempts)
             {
-                _logger.Warning("DDC {Operation} failed on {Monitor} after {Attempts} attempt(s)", operation, DisplayName, i);
+                // A monitor that stopped answering (e.g. switched to another machine) fails every call; warn once.
+                if (_failing)
+                {
+                    _logger.Debug("DDC {Operation} failed on {Monitor} after {Attempts} attempt(s)", operation, DisplayName, i);
+                }
+                else
+                {
+                    _failing = true;
+                    _logger.Warning("DDC {Operation} failed on {Monitor} after {Attempts} attempt(s)", operation, DisplayName, i);
+                }
+
                 return false;
             }
 

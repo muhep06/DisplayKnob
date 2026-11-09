@@ -28,6 +28,10 @@ internal sealed class TrayIconHost : IDisposable
     private readonly AudioMonitorMapper _mapper;
     private readonly DispatcherQueue _dispatcher;
     private readonly ILogger _logger;
+    private readonly SolidColorBrush _normalBackground = new(Colors.SteelBlue);
+    private readonly SolidColorBrush _warningBackground = new(Colors.DarkOrange);
+    private VolumeChangedEventArgs? _lastLevel; // UI thread only.
+    private Guid? _iconId;
 
     public TrayIconHost(MonitorProbe probe, VolumeController volume, AudioMonitorMapper mapper, ILogger logger)
     {
@@ -54,7 +58,7 @@ internal sealed class TrayIconHost : IDisposable
             Text = IdleText,
             FontSize = 36,
             Foreground = new SolidColorBrush(Colors.White),
-            Background = new SolidColorBrush(Colors.SteelBlue),
+            Background = _normalBackground,
         };
 
         _icon = new TaskbarIcon
@@ -67,46 +71,70 @@ internal sealed class TrayIconHost : IDisposable
         };
 
         _volume.VolumeChanged += OnVolumeChanged;
-        _mapper.TargetChanged += OnTargetChanged;
+        _volume.TargetRespondingChanged += OnStatusChanged;
+        _mapper.TargetChanged += OnStatusChanged;
     }
 
     public event EventHandler? ExitRequested;
 
-    public void Show() => _icon.ForceCreate(enablesEfficiencyMode: false);
+    /// <summary>The shell's id for the icon (set once shown). Readable from any thread.</summary>
+    public Guid? IconId => _iconId;
+
+    public void Show()
+    {
+        _icon.ForceCreate(enablesEfficiencyMode: false);
+        _iconId = _icon.Id; // TaskbarIcon is a DependencyObject; cache the id for other threads.
+    }
 
     public void Dispose()
     {
         _volume.VolumeChanged -= OnVolumeChanged;
-        _mapper.TargetChanged -= OnTargetChanged;
+        _volume.TargetRespondingChanged -= OnStatusChanged;
+        _mapper.TargetChanged -= OnStatusChanged;
         _icon.Dispose();
     }
 
-    // Both events arrive on background threads.
+    // These events arrive on background threads.
     private void OnVolumeChanged(object? sender, VolumeChangedEventArgs e) =>
-        _dispatcher.TryEnqueue(() => ShowLevel(e.MonitorName, e.Level, e.Muted));
-
-    private void OnTargetChanged(object? sender, EventArgs e)
-    {
-        if (_mapper.Current is null)
+        _dispatcher.TryEnqueue(() =>
         {
-            _dispatcher.TryEnqueue(ShowIdle);
+            _lastLevel = e;
+            Render();
+        });
+
+    private void OnStatusChanged(object? sender, EventArgs e) => _dispatcher.TryEnqueue(Render);
+
+    private void Render()
+    {
+        var target = _mapper.Current;
+        if (target is null)
+        {
+            SetIcon(IdleText, IdleToolTip, warning: false);
+        }
+        else if (!_volume.IsTargetResponding)
+        {
+            SetIcon("!", $"{target.Monitor.DisplayName} doesn't answer DDC. The volume keys control Windows for now.", warning: true);
+        }
+        else if (_lastLevel is { } last && last.MonitorName == target.Monitor.DisplayName)
+        {
+            var text = last.Muted ? "×" : last.Level.ToString(CultureInfo.InvariantCulture);
+            var toolTip = last.Muted
+                ? $"{last.MonitorName}: muted"
+                : $"{last.MonitorName}: {last.Level.ToString(CultureInfo.CurrentCulture)}%";
+            SetIcon(text, toolTip, warning: false);
+        }
+        else
+        {
+            SetIcon(IdleText, $"{IdleToolTip}: {target.Monitor.DisplayName}", warning: false);
         }
     }
 
-    private void ShowLevel(string monitorName, int level, bool muted)
+    private void SetIcon(string text, string toolTip, bool warning)
     {
-        _iconSource.Text = muted ? "×" : level.ToString(CultureInfo.InvariantCulture);
-        _iconSource.FontSize = level >= 100 && !muted ? 26 : 36;
-        _icon.ToolTipText = muted
-            ? $"{monitorName}: muted"
-            : $"{monitorName}: {level.ToString(CultureInfo.CurrentCulture)}%";
-    }
-
-    private void ShowIdle()
-    {
-        _iconSource.Text = IdleText;
-        _iconSource.FontSize = 36;
-        _icon.ToolTipText = IdleToolTip;
+        _iconSource.Text = text;
+        _iconSource.FontSize = text.Length >= 3 ? 26 : 36;
+        _iconSource.Background = warning ? _warningBackground : _normalBackground;
+        _icon.ToolTipText = toolTip;
     }
 
     private async Task ProbeAsync()
