@@ -26,6 +26,10 @@ GetModuleHandle
 GetAsyncKeyState
 SendInput
 INPUT
+RegisterHotKey
+UnregisterHotKey
+HOT_KEY_MODIFIERS
+WIN32_ERROR
 KBDLLHOOKSTRUCT
 VIRTUAL_KEY
 WM_KEYDOWN

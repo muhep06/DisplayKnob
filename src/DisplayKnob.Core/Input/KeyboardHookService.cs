@@ -16,7 +16,7 @@ namespace DisplayKnob.Core.Input;
 /// The callback therefore only asks the handler whether to swallow the key; the handler must return
 /// immediately (no I/O, no locks, no logging) and do the real work elsewhere.
 /// </remarks>
-internal sealed class KeyboardHookService : IDisposable
+internal sealed class KeyboardHookService : IDisposable, IHotkeyRecorder
 {
     private const uint ReinstallMessage = PInvoke.WM_APP + 1;
     private const uint InjectVolumeKeyMessage = PInvoke.WM_APP + 2;
@@ -32,6 +32,8 @@ internal sealed class KeyboardHookService : IDisposable
     private readonly ushort[] _hotkeyDownKey = new ushort[3]; // Indexed by VolumeKey: the virtual key whose shortcut press was swallowed, 0 = none.
     private HotkeyBindings? _bindings; // Replaced from other threads, read with Volatile.
     private bool _modifierMasked; // Hook thread only: a mask tap was already sent for the Alt/Win currently held.
+    private TaskCompletionSource<Hotkey?>? _recording; // Set while the settings UI waits for a shortcut; read with Volatile.
+    private ushort _recordedKey; // Hook thread only: the recorded key whose key-up still has to be swallowed.
     private Func<VolumeKeyPress, bool>? _handler;
     private Thread? _thread;
     private uint _threadId;
@@ -82,6 +84,27 @@ internal sealed class KeyboardHookService : IDisposable
     /// swallowed, and when the handler declines it the Windows volume is changed instead.
     /// </summary>
     public void SetHotkeys(HotkeyBindings? bindings) => Volatile.Write(ref _bindings, bindings);
+
+    /// <inheritdoc/>
+    public Task<Hotkey?> RecordAsync(CancellationToken cancellationToken = default)
+    {
+        if (_thread is null)
+        {
+            return Task.FromResult<Hotkey?>(null);
+        }
+
+        // Continuations run on the thread pool: the hook thread completes the task from inside the callback.
+        var recording = new TaskCompletionSource<Hotkey?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Interlocked.Exchange(ref _recording, recording)?.TrySetResult(null); // A newer recording replaces an older one.
+
+        if (cancellationToken.CanBeCanceled)
+        {
+            var registration = cancellationToken.Register(() => StopRecording(recording, null));
+            _ = recording.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);
+        }
+
+        return recording.Task;
+    }
 
     /// <summary>
     /// Replaces the hook with a fresh one. Windows silently removes a low-level hook whose callback once took
@@ -174,7 +197,7 @@ internal sealed class KeyboardHookService : IDisposable
             var isDown = message is PInvoke.WM_KEYDOWN or PInvoke.WM_SYSKEYDOWN;
             if (!TryMapKey((VIRTUAL_KEY)info->vkCode, out var key))
             {
-                if (HandleHotkey((ushort)info->vkCode, isDown, handler))
+                if (HandleRecording((ushort)info->vkCode, isDown) || HandleHotkey((ushort)info->vkCode, isDown, handler))
                 {
                     return (LRESULT)1;
                 }
@@ -203,6 +226,50 @@ internal sealed class KeyboardHookService : IDisposable
 
         return PInvoke.CallNextHookEx(default, code, wParam, lParam);
     }
+
+    // While a recording is pending, the first key that is not a modifier is the shortcut: it is reported and swallowed
+    // (with its key-up), so it neither reaches the focused window nor triggers a bound shortcut.
+    private bool HandleRecording(ushort vk, bool isDown)
+    {
+        if (!isDown)
+        {
+            if (_recordedKey == vk)
+            {
+                _recordedKey = 0;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (Volatile.Read(ref _recording) is not { } recording || IsModifierKey(vk))
+        {
+            return false;
+        }
+
+        var held = ReadModifiers(out var altGr);
+        if (altGr)
+        {
+            return false; // AltGr can't be recorded; keep waiting for a usable press.
+        }
+
+        _recordedKey = vk;
+        var escapeAlone = vk == (ushort)VIRTUAL_KEY.VK_ESCAPE && held == HotkeyModifiers.None;
+        StopRecording(recording, escapeAlone ? null : new Hotkey(held, vk));
+        return true;
+    }
+
+    private void StopRecording(TaskCompletionSource<Hotkey?> recording, Hotkey? result)
+    {
+        Interlocked.CompareExchange(ref _recording, null, recording);
+        recording.TrySetResult(result);
+    }
+
+    private static bool IsModifierKey(ushort vk) => vk is
+        (ushort)VIRTUAL_KEY.VK_SHIFT or (ushort)VIRTUAL_KEY.VK_LSHIFT or (ushort)VIRTUAL_KEY.VK_RSHIFT
+        or (ushort)VIRTUAL_KEY.VK_CONTROL or (ushort)VIRTUAL_KEY.VK_LCONTROL or (ushort)VIRTUAL_KEY.VK_RCONTROL
+        or (ushort)VIRTUAL_KEY.VK_MENU or (ushort)VIRTUAL_KEY.VK_LMENU or (ushort)VIRTUAL_KEY.VK_RMENU
+        or (ushort)VIRTUAL_KEY.VK_LWIN or (ushort)VIRTUAL_KEY.VK_RWIN;
 
     // Runs on the hook thread for every key that isn't a media volume key. Returns true to swallow the event.
     // Like the rest of the callback: no locks, no logging, no allocation; injection is left to the message loop.

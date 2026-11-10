@@ -45,6 +45,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MonitorLevelService>();
         services.AddSingleton<IStartupRegistration, RunKeyStartupRegistration>();
         services.AddSingleton<KeyboardHookService>();
+        services.AddSingleton<IHotkeyRecorder>(sp => sp.GetRequiredService<KeyboardHookService>());
+        services.AddSingleton<IHotkeyConflictChecker, HotkeyConflictChecker>();
         services.AddSingleton<IVolumeSource, HookVolumeSource>();
 
         return services;
