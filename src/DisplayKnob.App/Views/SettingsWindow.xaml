@@ -249,6 +249,7 @@
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
                   <FontIcon VerticalAlignment="Center" FontSize="20" Glyph="&#xE7F4;" />
                   <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -284,6 +285,19 @@
                       <FontIcon FontSize="14" Glyph="&#xE73E;" />
                     </Button>
                   </StackPanel>
+                  <StackPanel Grid.Row="2" Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Volume curve" />
+                    <TextBlock Style="{StaticResource DescriptionStyle}" Text="Logarithmic takes finer steps at low volume and bigger ones at high volume. Try it if the lowest levels are too loud or the top ones do nothing." />
+                  </StackPanel>
+                  <ComboBox
+                      Grid.Row="2"
+                      Grid.Column="2"
+                      Width="200"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Right"
+                      IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
+                      ItemsSource="{x:Bind CurveNames}"
+                      SelectedIndex="{x:Bind CurveIndex, Mode=TwoWay}" />
                 </Grid>
               </Border>
             </DataTemplate>

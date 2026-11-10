@@ -60,7 +60,7 @@
 
 ## v0.2 — Volume polish
 - [x] Custom hotkeys (Ctrl+Alt+↑/↓/M, Ctrl+Alt+Win, or recorded) for keyboards without media keys
-- Volume curve (linear / logarithmic feel)
+- [x] Volume curve (linear / logarithmic feel)
 - [x] Volume cap (max level) per monitor
 - "All monitors" mode: step every DDC-volume monitor together
 - Mirror the Windows volume UI to DDC: implemented behind `mirrorWindowsVolume` (off by default; the Windows UI then shows the 98% rest level). Needs a settings toggle (M6)

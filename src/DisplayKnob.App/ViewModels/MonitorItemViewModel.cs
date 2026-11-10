@@ -21,7 +21,11 @@ internal sealed partial class MonitorItemViewModel : ObservableObject
         var saved = settings.Current.ForMonitor(key);
         DdcVolumeEnabled = saved.DdcVolumeEnabled;
         MaxVolume = Math.Clamp(saved.MaxVolumePercent, MonitorSettings.MinMaxVolumePercent, 100);
+        CurveIndex = (int)saved.VolumeCurve;
     }
+
+    /// <summary>The volume curves in the order of <see cref="VolumeCurve"/>, so the combo box index is the enum value.</summary>
+    public IReadOnlyList<string> CurveNames { get; } = ["Linear", "Logarithmic"];
 
     public string Name { get; }
 
@@ -33,6 +37,23 @@ internal sealed partial class MonitorItemViewModel : ObservableObject
     /// <summary>The volume limit in percent of the monitor's range (see <see cref="MonitorSettings.MaxVolumePercent"/>).</summary>
     [ObservableProperty]
     public partial double MaxVolume { get; set; }
+
+    [ObservableProperty]
+    public partial int CurveIndex { get; set; }
+
+    partial void OnCurveIndexChanged(int value)
+    {
+        if (value < 0 || value >= CurveNames.Count)
+        {
+            return; // The combo box clears its selection while its items change.
+        }
+
+        var curve = (VolumeCurve)value;
+        if (_settings.Current.ForMonitor(_key).VolumeCurve != curve)
+        {
+            Save(m => m with { VolumeCurve = curve });
+        }
+    }
 
     partial void OnDdcVolumeEnabledChanged(bool value)
     {
