@@ -21,4 +21,34 @@ public sealed class VcpScaleTests
     [InlineData(7u, 5u, 5u, 0)]
     public void ToPercent_MapsRawOntoScale(uint raw, uint min, uint max, int expected) =>
         Assert.Equal(expected, VcpScale.ToPercent(raw, min, max));
+
+    [Theory]
+    [InlineData(0, 0u)]
+    [InlineData(10, 1u)] // 1% of the range: finer than linear's 10.
+    [InlineData(50, 25u)]
+    [InlineData(100, 100u)]
+    public void ToRaw_Squared_TakesFinerStepsAtTheBottom(int percent, uint expected) =>
+        Assert.Equal(expected, VcpScale.ToRaw(percent, 0, 100, exponent: 2.0));
+
+    [Theory]
+    [InlineData(0u, 0)]
+    [InlineData(1u, 10)]
+    [InlineData(25u, 50)]
+    [InlineData(100u, 100)]
+    public void ToPercent_Squared_IsTheInverse(uint raw, int expected) =>
+        Assert.Equal(expected, VcpScale.ToPercent(raw, 0, 100, exponent: 2.0));
+
+    [Fact]
+    public void ToRaw_Squared_RespectsTheUsableRange() =>
+        Assert.Equal(30u, VcpScale.ToRaw(50, 10, 90, exponent: 2.0)); // 10 + 0.25 * 80
+
+    [Fact]
+    public void ToRaw_AndToPercent_AreMonotonicForACurve()
+    {
+        var raws = Enumerable.Range(0, 101).Select(p => VcpScale.ToRaw(p, 0, 100, exponent: 2.0)).ToList();
+        var percents = Enumerable.Range(0, 101).Select(r => VcpScale.ToPercent((uint)r, 0, 100, exponent: 2.0)).ToList();
+
+        Assert.Equal(raws.Order(), raws);
+        Assert.Equal(percents.Order(), percents);
+    }
 }

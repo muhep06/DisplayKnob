@@ -69,8 +69,8 @@ public sealed class MonitorLevelService
             return;
         }
 
-        var (min, max) = _settings.Current.ForMonitor(monitor.Identity.Key).GetVolumeRange(rawMaximum);
-        monitor.WriteVcp(VcpCodes.AudioVolume, VcpScale.ToRaw(percent, min, max));
+        var mapping = _settings.Current.ForMonitor(monitor.Identity.Key).GetVolumeMapping(rawMaximum);
+        monitor.WriteVcp(VcpCodes.AudioVolume, mapping.ToRaw(percent));
     }
 
     /// <summary>Toggles mute on the current volume target. Returns <see langword="false"/> for other monitors.</summary>
@@ -79,7 +79,6 @@ public sealed class MonitorLevelService
 
     private int VolumePercent(DdcWorker monitor, VcpValue value)
     {
-        var (min, max) = _settings.Current.ForMonitor(monitor.Identity.Key).GetVolumeRange(value.Maximum);
-        return VcpScale.ToPercent(value.Current, min, max);
+        return _settings.Current.ForMonitor(monitor.Identity.Key).GetVolumeMapping(value.Maximum).ToPercent(value.Current);
     }
 }

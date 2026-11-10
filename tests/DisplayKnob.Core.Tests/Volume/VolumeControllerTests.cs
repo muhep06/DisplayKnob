@@ -156,6 +156,63 @@ public sealed class VolumeControllerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Logarithmic_ScalesLevelThroughTheCurve()
+    {
+        // Raw 30 of 100 is 55% on the squared curve (sqrt(0.3)); +2 gives 57%, which is raw 32.
+        SetMonitorSettings(new MonitorSettings { VolumeCurve = VolumeCurve.Logarithmic });
+        await StartAsync();
+        var levels = new List<int>();
+        _controller.VolumeChanged += (_, e) => levels.Add(e.Level);
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.Equal([57], levels);
+        Assert.Equal(32u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
+    public async Task Logarithmic_Up_AtTheBottom_StillMovesOneRawStep()
+    {
+        // +2% of the squared curve is raw 0.04, which would round to 0 and leave the key dead.
+        _monitor.SetValue(VcpCodes.AudioVolume, 0, 100);
+        SetMonitorSettings(new MonitorSettings { VolumeCurve = VolumeCurve.Logarithmic });
+        await StartAsync();
+        var levels = new List<int>();
+        _controller.VolumeChanged += (_, e) => levels.Add(e.Level);
+
+        await ProcessAsync(VolumeAction.Up);
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.Equal([10, 14], levels);
+        Assert.Equal(2u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
+    public async Task Logarithmic_Down_AtTheBottom_ReachesZero()
+    {
+        _monitor.SetValue(VcpCodes.AudioVolume, 1, 100);
+        SetMonitorSettings(new MonitorSettings { VolumeCurve = VolumeCurve.Logarithmic });
+        await StartAsync();
+
+        await ProcessAsync(VolumeAction.Down);
+
+        Assert.Equal(0u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
+    public async Task Linear_NarrowRange_Up_StillMovesOneRawStep()
+    {
+        // A 10% limit leaves raw 0..10; +2% would be raw 5.2, which rounds back to 5.
+        _monitor.SetValue(VcpCodes.AudioVolume, 5, 100);
+        SetMonitorSettings(new MonitorSettings { MaxVolumePercent = 10 });
+        await StartAsync();
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.Equal(6u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
     public async Task Steps_WithinIdleWindow_DoNotReread()
     {
         await StartAsync();

@@ -1,4 +1,5 @@
 using DisplayKnob.Core.Settings;
+using DisplayKnob.Core.Volume;
 
 namespace DisplayKnob.Core.Tests.Settings;
 
@@ -59,6 +60,22 @@ public sealed class MonitorSettingsTests
         var range = new MonitorSettings { VolumeMin = 80, MaxVolumePercent = 50 }.GetVolumeRange(100);
 
         Assert.Equal((50u, 50u), range);
+    }
+
+    [Fact]
+    public void GetVolumeMapping_Default_IsLinearOverTheWholeRange()
+    {
+        var mapping = new MonitorSettings().GetVolumeMapping(100);
+
+        Assert.Equal(new VolumeMapping(0, 100, 1.0), mapping);
+    }
+
+    [Fact]
+    public void GetVolumeMapping_LogarithmicWithALimit_CombinesTheCurveAndTheRange()
+    {
+        var mapping = new MonitorSettings { VolumeCurve = VolumeCurve.Logarithmic, MaxVolumePercent = 60 }.GetVolumeMapping(100);
+
+        Assert.Equal(new VolumeMapping(0, 60, 2.0), mapping);
     }
 
     [Fact]

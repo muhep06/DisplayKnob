@@ -1,3 +1,5 @@
+using DisplayKnob.Core.Volume;
+
 namespace DisplayKnob.Core.Settings;
 
 /// <summary>
@@ -33,6 +35,19 @@ public sealed record MonitorSettings
     /// so it can be set while the monitor isn't answering.
     /// </summary>
     public int MaxVolumePercent { get; set; } = 100;
+
+    /// <summary>How the 0–100 scale maps onto the usable range. Monitors respond very differently at the low end.</summary>
+    public VolumeCurve VolumeCurve { get; set; } = VolumeCurve.Linear;
+
+    /// <summary>The curve exponent of <see cref="VolumeCurve.Logarithmic"/>: the raw fraction is the square of the percentage.</summary>
+    private const double LogarithmicExponent = 2.0;
+
+    /// <summary>The usable raw range together with the curve, given the maximum the monitor reports.</summary>
+    public VolumeMapping GetVolumeMapping(uint reportedMax)
+    {
+        var (min, max) = GetVolumeRange(reportedMax);
+        return new VolumeMapping(min, max, VolumeCurve == VolumeCurve.Logarithmic ? LogarithmicExponent : 1.0);
+    }
 
     /// <summary>The usable raw volume range, given the maximum the monitor reports.</summary>
     public (uint Min, uint Max) GetVolumeRange(uint reportedMax)

@@ -199,9 +199,25 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
                 VolumeAction.Up => Math.Clamp(state.Level + step, 0, 100),
                 _ => Math.Clamp(state.Level - step, 0, 100),
             };
+            var mapping = GetMapping(state);
+            var raw = mapping.ToRaw(level);
+
+            // Every press moves the monitor by at least one raw step. Where the curve is flat (a few raw values
+            // spread over many percent, e.g. the bottom of a logarithmic curve or a narrow limited range) a
+            // plain step would round to the same raw value and the key would seem dead.
+            if (command.Action == VolumeAction.Up && raw <= state.Raw && state.Raw < mapping.Max)
+            {
+                raw = state.Raw + 1;
+                level = mapping.ToPercent(raw);
+            }
+            else if (command.Action == VolumeAction.Down && raw >= state.Raw && state.Raw > mapping.Min)
+            {
+                raw = state.Raw - 1;
+                level = mapping.ToPercent(raw);
+            }
+
             // Also write when the monitor sits above the volume limit (set from its own buttons, or from another
             // machine): at level 100 the level doesn't change, but the sound is louder than the limit allows.
-            var raw = ToRaw(state, level);
             if (level != state.Level || raw != state.Raw)
             {
                 state.Level = level;
@@ -457,20 +473,12 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         return false;
     }
 
-    private (uint Min, uint Max) GetRange(MonitorState state) =>
-        _settings.Current.ForMonitor(state.Monitor.Identity.Key).GetVolumeRange(state.RawMax);
+    private VolumeMapping GetMapping(MonitorState state) =>
+        _settings.Current.ForMonitor(state.Monitor.Identity.Key).GetVolumeMapping(state.RawMax);
 
-    private uint ToRaw(MonitorState state, int level)
-    {
-        var (min, max) = GetRange(state);
-        return VcpScale.ToRaw(level, min, max);
-    }
+    private uint ToRaw(MonitorState state, int level) => GetMapping(state).ToRaw(level);
 
-    private int FromRaw(MonitorState state, uint raw)
-    {
-        var (min, max) = GetRange(state);
-        return VcpScale.ToPercent(raw, min, max);
-    }
+    private int FromRaw(MonitorState state, uint raw) => GetMapping(state).ToPercent(raw);
 
     private sealed class MonitorState
     {

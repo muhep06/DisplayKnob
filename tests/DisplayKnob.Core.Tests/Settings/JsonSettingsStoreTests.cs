@@ -66,6 +66,29 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Update_VolumeCurve_PersistsAcrossInstances()
+    {
+        var store = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        store.Update(s => s with { Monitors = new Dictionary<string, MonitorSettings> { ["DEL4123-ABC|PATH"] = new() { VolumeCurve = VolumeCurve.Logarithmic } } });
+        var reloaded = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        Assert.Equal(VolumeCurve.Logarithmic, reloaded.Current.ForMonitor("DEL4123-ABC|PATH").VolumeCurve);
+        Assert.Contains("\"Logarithmic\"", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Constructor_MonitorEntryWithoutVolumeCurve_IsLinear()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(SettingsPath, """{ "monitors": { "DEL4123-ABC|PATH": { "ddcVolumeEnabled": true } } }""");
+
+        var monitor = new JsonSettingsStore(SettingsPath, Logger.None).Current.ForMonitor("DEL4123-ABC|PATH");
+
+        Assert.Equal(VolumeCurve.Linear, monitor.VolumeCurve);
+    }
+
+    [Fact]
     public void Constructor_MonitorEntryWithoutMaxVolumePercent_UsesFullRange()
     {
         // A file saved before the option existed.
