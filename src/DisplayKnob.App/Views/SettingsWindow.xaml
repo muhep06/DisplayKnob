@@ -263,16 +263,24 @@
                     <TextBlock Text="Maximum volume" />
                     <TextBlock Style="{StaticResource DescriptionStyle}" Text="Percent of the monitor's range. The volume keys, sliders and indicator then use 0–100 within this limit." />
                   </StackPanel>
-                  <NumberBox
-                      Grid.Row="1"
-                      Grid.Column="2"
-                      VerticalAlignment="Center"
-                      Minimum="10"
-                      Maximum="100"
-                      SmallChange="5"
-                      SpinButtonPlacementMode="Inline"
-                      IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
-                      Value="{x:Bind MaxVolume, Mode=TwoWay}" />
+                  <!-- The box applies its value on Enter or when it loses focus; the button is for people who click away instead. -->
+                  <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <NumberBox
+                        VerticalAlignment="Center"
+                        Minimum="10"
+                        Maximum="100"
+                        SmallChange="5"
+                        SpinButtonPlacementMode="Inline"
+                        IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
+                        Value="{x:Bind MaxVolume, Mode=TwoWay}" />
+                    <Button
+                        Command="{x:Bind ApplyMaxVolumeCommand}"
+                        IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
+                        ToolTipService.ToolTip="Apply"
+                        AutomationProperties.Name="Apply maximum volume">
+                      <FontIcon FontSize="14" Glyph="&#xE73E;" />
+                    </Button>
+                  </StackPanel>
                 </Grid>
               </Border>
             </DataTemplate>

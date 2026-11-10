@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DisplayKnob.Core.Settings;
 
 namespace DisplayKnob.App.ViewModels;
@@ -43,7 +44,14 @@ internal sealed partial class MonitorItemViewModel : ObservableObject
         Save(m => m with { DdcVolumeEnabled = value });
     }
 
-    partial void OnMaxVolumeChanged(double value)
+    partial void OnMaxVolumeChanged(double value) => SaveMaxVolume(value);
+
+    // The NumberBox hands over its value on Enter or when it loses focus. Clicking this button moves the focus,
+    // so the value arrives first; saving again is harmless and makes the button do what it looks like it does.
+    [RelayCommand]
+    private void ApplyMaxVolume() => SaveMaxVolume(MaxVolume);
+
+    private void SaveMaxVolume(double value)
     {
         // NumberBox reports NaN while the box is empty.
         if (double.IsNaN(value))
