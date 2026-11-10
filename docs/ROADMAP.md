@@ -54,8 +54,8 @@
 - [x] Tray flyout: per-monitor volume + brightness sliders
 
 ### M7. Release
-- [ ] Velopack packaging, GitHub Release workflow, auto-update check
-- [ ] README: features, the KVM/Mac motivation, the elevated-window limitation, DDC/CI troubleshooting
+- [x] Velopack packaging, GitHub Release workflow, auto-update check
+- [x] README: features, the KVM/Mac motivation, the elevated-window limitation, DDC/CI troubleshooting
 - [ ] winget manifest (later)
 
 ## v0.2 — Volume polish
