@@ -23,12 +23,13 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly DispatcherQueue _dispatcher;
     private bool _loading;
 
-    public SettingsViewModel(ISettingsStore settings, MonitorRegistry registry, IAudioEndpointWatcher audio, IStartupRegistration startup)
+    public SettingsViewModel(ISettingsStore settings, MonitorRegistry registry, IAudioEndpointWatcher audio, IStartupRegistration startup, HotkeySettingsViewModel hotkeys)
     {
         _settings = settings;
         _registry = registry;
         _audio = audio;
         _startup = startup;
+        Hotkeys = hotkeys;
         _dispatcher = DispatcherQueue.GetForCurrentThread()
             ?? throw new InvalidOperationException("SettingsViewModel must be created on the UI thread.");
 
@@ -36,7 +37,13 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _registry.MonitorsChanged += OnMonitorsChanged;
     }
 
-    public void Dispose() => _registry.MonitorsChanged -= OnMonitorsChanged;
+    public void Dispose()
+    {
+        _registry.MonitorsChanged -= OnMonitorsChanged;
+        Hotkeys.Dispose();
+    }
+
+    public HotkeySettingsViewModel Hotkeys { get; }
 
     public ObservableCollection<MonitorItemViewModel> Monitors { get; } = [];
 
@@ -80,6 +87,7 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
             PollIndex = pollIndex >= 0 ? pollIndex : PollChoices.ToList().IndexOf(10); // A hand-edited value shows as the default.
             PinEndpointVolume = current.PinEndpointVolume;
             MirrorWindowsVolume = current.MirrorWindowsVolume;
+            Hotkeys.Load();
 
             var monitors = _registry.Monitors;
             Monitors.Clear();

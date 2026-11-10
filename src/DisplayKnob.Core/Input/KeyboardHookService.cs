@@ -256,6 +256,7 @@ internal sealed class KeyboardHookService : IDisposable, IHotkeyRecorder
         _recordedKey = vk;
         var escapeAlone = vk == (ushort)VIRTUAL_KEY.VK_ESCAPE && held == HotkeyModifiers.None;
         StopRecording(recording, escapeAlone ? null : new Hotkey(held, vk));
+        MaskModifiersIfNeeded(held);
         return true;
     }
 
@@ -313,13 +314,18 @@ internal sealed class KeyboardHookService : IDisposable, IHotkeyRecorder
             PInvoke.PostThreadMessage(_threadId, InjectVolumeKeyMessage, (WPARAM)(nuint)key, default);
         }
 
+        MaskModifiersIfNeeded(held);
+        return true;
+    }
+
+    // Once per Alt/Win hold, however many shortcut presses (key repeat) happen while it is held.
+    private void MaskModifiersIfNeeded(HotkeyModifiers held)
+    {
         if (!_modifierMasked && (held & (HotkeyModifiers.Alt | HotkeyModifiers.Win)) != 0)
         {
             _modifierMasked = true;
             PInvoke.PostThreadMessage(_threadId, MaskModifierMessage, default, default);
         }
-
-        return true;
     }
 
     // Right Alt counts as AltGr: on layouts that have it, Windows reports AltGr as Ctrl+right Alt and it types

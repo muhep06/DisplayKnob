@@ -145,6 +145,84 @@
           </Grid>
         </Border>
 
+        <!-- Keyboard shortcuts -->
+        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Keyboard shortcuts" />
+        <Border Style="{StaticResource CardStyle}">
+          <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Volume shortcuts" />
+              <TextBlock Style="{StaticResource DescriptionStyle}" Text="For keyboards without volume keys. Without a DDC monitor as the audio output, they change the Windows volume." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent="" IsOn="{x:Bind ViewModel.Hotkeys.Enabled, Mode=TwoWay}" />
+          </Grid>
+        </Border>
+        <Border Style="{StaticResource CardStyle}">
+          <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Shortcuts" />
+              <TextBlock Style="{StaticResource DescriptionStyle}" Text="Up and Down change the volume, M mutes. Use the left Alt key: the right one is AltGr on many keyboards." />
+            </StackPanel>
+            <ComboBox
+                Grid.Column="1"
+                MinWidth="260"
+                VerticalAlignment="Center"
+                IsEnabled="{x:Bind ViewModel.Hotkeys.Enabled, Mode=OneWay}"
+                ItemsSource="{x:Bind vm:HotkeySettingsViewModel.PresetNames}"
+                SelectedIndex="{x:Bind ViewModel.Hotkeys.PresetIndex, Mode=TwoWay}" />
+          </Grid>
+        </Border>
+        <ItemsControl
+            ItemsSource="{x:Bind ViewModel.Hotkeys.CustomItems}"
+            Visibility="{x:Bind ViewModel.Hotkeys.IsCustom, Mode=OneWay}"
+            IsEnabled="{x:Bind ViewModel.Hotkeys.Enabled, Mode=OneWay}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:HotkeyItemViewModel">
+              <Border Style="{StaticResource CardStyle}">
+                <Grid ColumnSpacing="8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock VerticalAlignment="Center" Text="{x:Bind Name}" />
+                  <Button Grid.Column="1" MinWidth="200" Content="{x:Bind ButtonText, Mode=OneWay}" Command="{x:Bind RecordCommand}" />
+                  <Button
+                      Grid.Column="2"
+                      Command="{x:Bind ClearCommand}"
+                      IsEnabled="{x:Bind HasValue, Mode=OneWay}"
+                      ToolTipService.ToolTip="Clear"
+                      AutomationProperties.Name="Clear shortcut">
+                    <FontIcon FontSize="14" Glyph="&#xE711;" />
+                  </Button>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <InfoBar
+            Severity="Error"
+            IsClosable="False"
+            Message="{x:Bind ViewModel.Hotkeys.ErrorText, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.Hotkeys.HasError, Mode=OneWay}" />
+        <InfoBar
+            Severity="Warning"
+            IsClosable="False"
+            Message="{x:Bind ViewModel.Hotkeys.ConflictText, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.Hotkeys.HasConflict, Mode=OneWay}" />
+
         <!-- Monitors -->
         <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Monitors" />
         <Border Style="{StaticResource CardStyle}" Visibility="{x:Bind ViewModel.HasNoMonitors, Mode=OneWay}">
