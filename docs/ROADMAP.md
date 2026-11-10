@@ -71,5 +71,6 @@
 - Virtual displays: manage the VirtualDrivers VDD (MIT, signed)
 - PiP / screen mirror window (Windows.Graphics.Capture)
 - Software dimming below the DDC minimum (gamma/overlay)
-- uiAccess build, code signing (SignPath Foundation)
+- Code signing (SignPath Foundation, free for open source) so SmartScreen stops warning about the installer
+- Elevated (admin) windows: the volume keys don't reach us while one has focus (UIPI). Accepted for now. Try a `RegisterHotKey` fallback first; the real fix (`uiAccess`) needs a signed build in Program Files, so an optional separate package
 - Optional "native mode" virtual audio driver behind `IVolumeSource` (needs signing)
