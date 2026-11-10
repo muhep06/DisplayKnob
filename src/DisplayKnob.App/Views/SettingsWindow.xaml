@@ -43,12 +43,12 @@
     </TitleBar>
 
     <!-- The page title stays put, like Windows Settings, so the cards scroll away below it rather than under the title bar. -->
-    <Border Grid.Row="1" MaxWidth="1000" Padding="24,4,24,8" HorizontalAlignment="Left">
+    <Border Grid.Row="1" MaxWidth="1000" Padding="24,4,24,8" HorizontalAlignment="Stretch">
       <TextBlock HorizontalAlignment="Left" Style="{StaticResource TitleTextBlockStyle}" Text="Settings" />
     </Border>
 
     <ScrollViewer Grid.Row="2" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel MaxWidth="1000" Padding="24,0,24,32" HorizontalAlignment="Left" Spacing="4">
+      <StackPanel MaxWidth="1000" Padding="24,0,24,32" HorizontalAlignment="Stretch" Spacing="4">
 
         <!-- General -->
         <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="General" />
