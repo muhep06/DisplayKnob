@@ -240,12 +240,16 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:MonitorItemViewModel">
               <Border Style="{StaticResource CardStyle}">
-                <Grid ColumnSpacing="16">
+                <Grid ColumnSpacing="16" RowSpacing="12">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
                   <FontIcon VerticalAlignment="Center" FontSize="20" Glyph="&#xE7F4;" />
                   <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind Name}" />
@@ -255,6 +259,20 @@
                     <TextBlock VerticalAlignment="Center" Style="{StaticResource DescriptionStyle}" Text="Control volume" />
                     <ToggleSwitch MinWidth="0" OnContent="" OffContent="" IsOn="{x:Bind DdcVolumeEnabled, Mode=TwoWay}" />
                   </StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Maximum volume" />
+                    <TextBlock Style="{StaticResource DescriptionStyle}" Text="Percent of the monitor's range. The volume keys, sliders and indicator then use 0–100 within this limit." />
+                  </StackPanel>
+                  <NumberBox
+                      Grid.Row="1"
+                      Grid.Column="2"
+                      VerticalAlignment="Center"
+                      Minimum="10"
+                      Maximum="100"
+                      SmallChange="5"
+                      SpinButtonPlacementMode="Inline"
+                      IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
+                      Value="{x:Bind MaxVolume, Mode=TwoWay}" />
                 </Grid>
               </Border>
             </DataTemplate>

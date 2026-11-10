@@ -17,6 +17,7 @@ If you share a monitor between a Mac and a Windows PC through a KVM, the Mac's v
 - On-screen display that never steals focus
 - Follows the default audio output: the keys control whichever monitor is playing audio, and pass through untouched when audio goes elsewhere (e.g. headphones)
 - Tray flyout with volume and brightness sliders per monitor
+- Per-monitor maximum volume: the volume scale is squeezed below the limit, so 100% never gets louder than you allow. If the monitor is above the limit (set with its own buttons or from another computer), the next volume key press brings it back down
 - Settings window: per-monitor volume control, audio output to monitor mapping, step size, polling for changes made on the monitor or another computer, start with Windows
 - Survives hotplug, KVM switches and sleep/resume
 - Updates itself from GitHub Releases
