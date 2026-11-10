@@ -9,19 +9,19 @@ public sealed record MonitorSettings
     public static MonitorSettings Default { get; } = new();
 
     /// <summary>When <see langword="false"/>, volume keys pass through even if audio plays through this monitor.</summary>
-    public bool DdcVolumeEnabled { get; init; } = true;
+    public bool DdcVolumeEnabled { get; set; } = true;
 
     /// <summary>
     /// Raw VCP 0x62 value that maps to 0% on the user scale. <see langword="null"/> means 0.
     /// Raise it when the bottom of the monitor's range is inaudible.
     /// </summary>
-    public uint? VolumeMin { get; init; }
+    public uint? VolumeMin { get; set; }
 
     /// <summary>
     /// Raw VCP 0x62 value that maps to 100% on the user scale. <see langword="null"/> means the monitor's reported maximum.
     /// Lower it when the top of the monitor's range is uncomfortably loud.
     /// </summary>
-    public uint? VolumeMax { get; init; }
+    public uint? VolumeMax { get; set; }
 
     /// <summary>The usable raw volume range, given the maximum the monitor reports.</summary>
     public (uint Min, uint Max) GetVolumeRange(uint reportedMax)
