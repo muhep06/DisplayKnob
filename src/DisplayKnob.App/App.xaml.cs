@@ -44,6 +44,9 @@ public partial class App : Application
         _tray.SettingsRequested += (_, _) => settingsWindow.Show();
         _tray.FlyoutRequested += (_, _) => flyout.Toggle(_tray.IconId);
         flyout.SettingsRequested += (_, _) => settingsWindow.Show();
+
+        // Starting DisplayKnob again (e.g. from the Start menu) opens the tray flyout, as a click on the icon would.
+        _services.GetRequiredService<LaunchedAgainListener>();
         OpenWindowIfRequested(settingsWindow, flyout, _tray);
 
         // UI-thread objects must be created here, not lazily from a background thread.

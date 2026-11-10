@@ -17,6 +17,13 @@ internal static class Program
             .OnBeforeUninstallFastCallback(_ => StartupEntries.Remove())
             .Run();
 
+        // After Velopack (its install/update/uninstall launches are not "another copy"). Held until the process exits.
+        using var instance = SingleInstance.TryEnter();
+        if (instance is null)
+        {
+            return;
+        }
+
         // The XAML compiler's own Main is disabled (DISABLE_XAML_GENERATED_MAIN); this is its body.
         XamlGeneratedProgram.XamlGeneratedMain();
     }

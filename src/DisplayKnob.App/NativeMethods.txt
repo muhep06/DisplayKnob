@@ -28,6 +28,8 @@ VIRTUAL_KEY
 // Settings window and tray flyout: sizing, bringing to the foreground
 GetDpiForWindow
 SetForegroundWindow
+AllowSetForegroundWindow
+ASFW_ANY
 
 // Tray icon: the size the shell wants for notification-area icons
 GetSystemMetrics

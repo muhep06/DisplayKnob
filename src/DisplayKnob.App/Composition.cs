@@ -5,6 +5,7 @@ using DisplayKnob.App.ViewModels;
 using DisplayKnob.App.Views;
 using DisplayKnob.Core;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Dispatching;
 
 namespace DisplayKnob.App;
 
@@ -22,6 +23,11 @@ internal static class Composition
         services.AddSingleton<UpdateService>();
         services.AddSingleton<TrayIconHost>();
         services.AddSingleton<StartupOffer>();
+
+        // Launching the app again opens the tray flyout. The provider disposes the listener on shutdown.
+        services.AddSingleton(sp => new LaunchedAgainListener(
+            DispatcherQueue.GetForCurrentThread(),
+            () => sp.GetRequiredService<TrayFlyoutPresenter>().Toggle(sp.GetRequiredService<TrayIconHost>().IconId)));
         services.AddSingleton<TrayWheelHandler>();
         services.AddSingleton<TrayFlyoutViewModel>();
         services.AddSingleton<TrayFlyoutPresenter>();
