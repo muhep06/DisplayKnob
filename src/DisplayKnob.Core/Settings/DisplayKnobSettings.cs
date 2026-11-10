@@ -46,6 +46,12 @@ public sealed record DisplayKnobSettings
     /// <summary>Show the on-screen volume indicator when the volume changes.</summary>
     public bool ShowOsd { get; set; } = true;
 
+    /// <summary>
+    /// The installed app has already offered, once, to start with Windows (a notification the user can click).
+    /// It is not offered again, however the user answered.
+    /// </summary>
+    public bool StartupOfferShown { get; set; }
+
     /// <summary>Keyboard shortcuts for keyboards without media keys.</summary>
     public HotkeySettings Hotkeys { get; set; } = new();
 

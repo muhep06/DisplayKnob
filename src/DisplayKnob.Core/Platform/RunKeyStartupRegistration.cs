@@ -7,27 +7,47 @@ namespace DisplayKnob.Core.Platform;
 /// <summary>
 /// <see cref="IStartupRegistration"/> via <c>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</c>: per user, no admin rights.
 /// </summary>
+/// <remarks>
+/// Windows also keeps the Startup tab's enabled/disabled state of each entry in <c>StartupApproved\Run</c>. A user who
+/// disables DisplayKnob there keeps the <c>Run</c> value, but it no longer starts; so that flag counts as "off", and
+/// turning the setting on clears it. Otherwise the setting would say on while nothing starts, or stay off after the user
+/// switched it on.
+/// </remarks>
 internal sealed class RunKeyStartupRegistration : IStartupRegistration
 {
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "DisplayKnob";
-
     private readonly ILogger _logger;
     private readonly string? _command;
+    private readonly string _runKeyPath;
+    private readonly string _approvedKeyPath;
 
     public RunKeyStartupRegistration(ILogger logger)
+        : this(logger, Environment.ProcessPath is { } path ? $"\"{path}\"" : null, StartupEntries.RunKeyPath, StartupEntries.ApprovedKeyPath)
     {
-        _logger = logger.ForContext<RunKeyStartupRegistration>();
-        _command = Environment.ProcessPath is { } path ? $"\"{path}\"" : null;
     }
 
-    // Only counts as enabled if it points at this executable; a stale entry from an old location doesn't.
+    // Tests point this at a key of their own.
+    internal RunKeyStartupRegistration(ILogger logger, string? command, string runKeyPath, string approvedKeyPath)
+    {
+        _logger = logger.ForContext<RunKeyStartupRegistration>();
+        _command = command;
+        _runKeyPath = runKeyPath;
+        _approvedKeyPath = approvedKeyPath;
+    }
+
+    // Only counts as enabled if it points at this executable (a stale entry from an old location doesn't)
+    // and the user hasn't disabled it in Task Manager.
     public bool IsEnabled
     {
         get
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-            return _command is not null && string.Equals(key?.GetValue(ValueName) as string, _command, StringComparison.OrdinalIgnoreCase);
+            using var run = Registry.CurrentUser.OpenSubKey(_runKeyPath);
+            if (_command is null || !string.Equals(run?.GetValue(StartupEntries.ValueName) as string, _command, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            using var approved = Registry.CurrentUser.OpenSubKey(_approvedKeyPath);
+            return !IsDisabledByUser(approved?.GetValue(StartupEntries.ValueName));
         }
     }
 
@@ -41,15 +61,19 @@ internal sealed class RunKeyStartupRegistration : IStartupRegistration
 
         try
         {
-            using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+            using var run = Registry.CurrentUser.CreateSubKey(_runKeyPath);
             if (enabled)
             {
-                key.SetValue(ValueName, _command);
+                run.SetValue(StartupEntries.ValueName, _command);
             }
             else
             {
-                key.DeleteValue(ValueName, throwOnMissingValue: false);
+                run.DeleteValue(StartupEntries.ValueName, throwOnMissingValue: false);
             }
+
+            // No value means "enabled" to Windows; either way a stale "disabled" flag must not outlive this change.
+            using var approved = Registry.CurrentUser.OpenSubKey(_approvedKeyPath, writable: true);
+            approved?.DeleteValue(StartupEntries.ValueName, throwOnMissingValue: false);
 
             _logger.Information("Start with Windows: {Enabled}", enabled);
             return true;
@@ -61,4 +85,8 @@ internal sealed class RunKeyStartupRegistration : IStartupRegistration
             return false;
         }
     }
+
+    // Windows writes 12 bytes whose first byte is 02 (or 06) when enabled and 03 when the user disabled the entry:
+    // an odd first byte means disabled.
+    private static bool IsDisabledByUser(object? approved) => approved is byte[] { Length: > 0 } bytes && (bytes[0] & 1) == 1;
 }
