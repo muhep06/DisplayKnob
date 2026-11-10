@@ -13,6 +13,7 @@ If you share a monitor between a Mac and a Windows PC through a KVM, the Mac's v
 - Media volume keys control monitor volume over DDC/CI (VCP 0x62)
 - Mute via VCP 0x8D, with emulation when the monitor doesn't support it
 - Fine steps (1%) with Shift or Alt; mouse wheel over the tray icon
+- Keyboard shortcuts for keyboards without media keys: Ctrl+Alt+↑/↓ and M by default, a Ctrl+Alt+Win variant, or record your own (use the left Alt key). When audio isn't going to a DDC monitor they change the Windows volume
 - On-screen display that never steals focus
 - Follows the default audio output: the keys control whichever monitor is playing audio, and pass through untouched when audio goes elsewhere (e.g. headphones)
 - Tray flyout with volume and brightness sliders per monitor

@@ -59,7 +59,7 @@
 - [ ] winget manifest (later)
 
 ## v0.2 — Volume polish
-- Custom hotkeys (e.g. Ctrl+Alt+↑/↓) for keyboards without media keys
+- [x] Custom hotkeys (Ctrl+Alt+↑/↓/M, Ctrl+Alt+Win, or recorded) for keyboards without media keys
 - Volume curve (linear / logarithmic feel)
 - Volume cap (max level) per monitor
 - "All monitors" mode: step every DDC-volume monitor together

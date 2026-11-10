@@ -63,7 +63,7 @@ docs/
 
 ## Engineering rules (the known traps)
 
-1. **Hook callbacks must return immediately.** Windows silently removes a low-level hook whose callback exceeds `LowLevelHooksTimeout`. The callback only decides whether to swallow or pass the key and enqueues an event. It never touches DDC, never logs synchronously, and never allocates heavily.
+1. **Hook callbacks must return immediately.** Windows silently removes a low-level hook whose callback exceeds `LowLevelHooksTimeout`. The callback only decides whether to swallow or pass the key and enqueues an event. It never touches DDC, never logs synchronously, and never allocates heavily. Keyboard shortcuts (custom hotkeys) follow the same rule: the callback only reads the modifier state, matches, and enqueues. Anything that sends input (the Windows volume fallback, the Alt/Win "mask" tap that keeps the Start menu from opening) is posted to the hook thread's message loop and runs after the callback has returned.
 2. **DDC is slow (~50 ms per SetVCPFeature) and flaky.** All DDC I/O runs on one dedicated worker per physical monitor. Rapid key repeats are coalesced so only the latest target value gets written. Retry with backoff (2–3 attempts) and treat failures as normal.
 3. **Physical monitor handles are not stable.** Re-enumerate on `WM_DISPLAYCHANGE`, device-arrival notifications, and resume from sleep. A KVM switch can invalidate handles. Always `DestroyPhysicalMonitors` old handles.
 4. **Stable monitor identity** = monitor device path from `DisplayConfigGetDeviceInfo` (DISPLAYCONFIG_TARGET_DEVICE_NAME) plus EDID manufacturer/product/serial. Never the enumeration index.
