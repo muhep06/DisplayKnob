@@ -41,7 +41,7 @@
                 Visibility="{x:Bind NotResponding, Mode=OneWay}" />
 
             <!-- Brightness -->
-            <Grid ColumnSpacing="8" Visibility="{x:Bind HasBrightness, Mode=OneWay}">
+            <Grid ColumnSpacing="8" Visibility="{x:Bind BrightnessRowVisible, Mode=OneWay}">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="40" />
                 <ColumnDefinition Width="*" />
@@ -54,12 +54,13 @@
                   Maximum="100"
                   IsThumbToolTipEnabled="False"
                   AutomationProperties.Name="Brightness"
+                  IsEnabled="{x:Bind HasBrightness, Mode=OneWay}"
                   Value="{x:Bind Brightness, Mode=TwoWay}" />
               <TextBlock Grid.Column="2" VerticalAlignment="Center" TextAlignment="Right" Text="{x:Bind BrightnessText, Mode=OneWay}" />
             </Grid>
 
             <!-- Volume -->
-            <Grid ColumnSpacing="8" Visibility="{x:Bind HasVolume, Mode=OneWay}">
+            <Grid ColumnSpacing="8" Visibility="{x:Bind VolumeRowVisible, Mode=OneWay}">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="40" />
                 <ColumnDefinition Width="*" />
@@ -84,6 +85,7 @@
                   Maximum="100"
                   IsThumbToolTipEnabled="False"
                   AutomationProperties.Name="Volume"
+                  IsEnabled="{x:Bind HasVolume, Mode=OneWay}"
                   Value="{x:Bind Volume, Mode=TwoWay}" />
               <TextBlock Grid.Column="2" VerticalAlignment="Center" TextAlignment="Right" Text="{x:Bind VolumeText, Mode=OneWay}" />
             </Grid>

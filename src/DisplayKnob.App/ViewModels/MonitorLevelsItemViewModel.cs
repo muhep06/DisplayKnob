@@ -39,9 +39,12 @@ internal sealed partial class MonitorLevelsItemViewModel : ObservableObject
     public bool CanMute { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BrightnessRowVisible))]
+    [NotifyPropertyChangedFor(nameof(VolumeRowVisible))]
     public partial bool IsLoading { get; set; } = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BrightnessRowVisible))]
     public partial bool HasBrightness { get; set; }
 
     [ObservableProperty]
@@ -49,6 +52,7 @@ internal sealed partial class MonitorLevelsItemViewModel : ObservableObject
     public partial double Brightness { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VolumeRowVisible))]
     public partial bool HasVolume { get; set; }
 
     [ObservableProperty]
@@ -61,6 +65,12 @@ internal sealed partial class MonitorLevelsItemViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool NotResponding { get; set; }
+
+    // The rows are shown while the monitor is still being read, so the flyout is sized for them from the start;
+    // a row a monitor doesn't support disappears once the reading is done (and the flyout is resized then).
+    public bool BrightnessRowVisible => IsLoading || HasBrightness;
+
+    public bool VolumeRowVisible => IsLoading || HasVolume;
 
     public string BrightnessText => ((int)Math.Round(Brightness)).ToString(CultureInfo.CurrentCulture);
 

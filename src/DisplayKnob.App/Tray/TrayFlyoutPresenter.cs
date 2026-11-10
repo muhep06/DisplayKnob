@@ -1,5 +1,6 @@
 using DisplayKnob.App.ViewModels;
 using DisplayKnob.Core.Displays;
+using Serilog;
 
 namespace DisplayKnob.App.Tray;
 
@@ -14,11 +15,13 @@ internal sealed class TrayFlyoutPresenter : IDisposable
     private const long ReopenGuardMs = 300;
 
     private readonly TrayFlyoutViewModel _viewModel;
+    private readonly ILogger _logger;
     private TrayFlyoutWindow? _window;
 
-    public TrayFlyoutPresenter(TrayFlyoutViewModel viewModel)
+    public TrayFlyoutPresenter(TrayFlyoutViewModel viewModel, ILogger logger)
     {
         _viewModel = viewModel;
+        _logger = logger.ForContext<TrayFlyoutPresenter>();
     }
 
     public event EventHandler? SettingsRequested;
@@ -37,7 +40,9 @@ internal sealed class TrayFlyoutPresenter : IDisposable
             return;
         }
 
-        _ = _viewModel.LoadAsync(); // Items are created synchronously, so the size is known right away.
+        // Items are created synchronously, so the size is known right away. Reading the monitors takes longer;
+        // a row a monitor turns out not to support is dropped then, and the flyout is resized (see below).
+        var loaded = _viewModel.LoadAsync();
 
         var (x, y) = (0, 0);
         if (iconId is { } id && TrayIconLocator.TryGetRect(id, out var icon))
@@ -54,7 +59,31 @@ internal sealed class TrayFlyoutPresenter : IDisposable
         var width = (int)Math.Round(WidthDip * area.Scale);
         var height = (int)Math.Ceiling(_window.MeasureHeight(WidthDip) * area.Scale);
         var margin = (int)Math.Round(MarginDip * area.Scale);
-        _window.ShowAt(area.Left + area.Width - width - margin, area.Top + area.Height - height - margin, width, height);
+        var left = area.Left + area.Width - width - margin;
+        var bottom = area.Top + area.Height - margin;
+        _window.ShowAt(left, bottom - height, width, height);
+        _ = ResizeWhenLoadedAsync(loaded, left, bottom, width, area.Scale);
+    }
+
+    // The content height can change once the monitors have been read; keep the bottom edge where it is.
+    private async Task ResizeWhenLoadedAsync(Task loaded, int left, int bottom, int width, double scale)
+    {
+        try
+        {
+            await loaded;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Reading failed (the view model logs the expected cases); the flyout keeps the size it was shown with.
+            _logger.Warning(ex, "Reading the monitors for the flyout failed");
+            return;
+        }
+
+        if (_window is { IsShown: true } window)
+        {
+            var height = (int)Math.Ceiling(window.MeasureHeight(WidthDip) * scale);
+            window.Resize(left, bottom - height, width, height);
+        }
     }
 
     public void Dispose()

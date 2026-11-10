@@ -64,6 +64,10 @@ internal sealed partial class TrayFlyoutWindow : Window
         IsShown = true;
     }
 
+    /// <summary>Moves and resizes the shown flyout (physical pixels) without activating it or changing its z-order.</summary>
+    public void Resize(int x, int y, int width, int height) =>
+        PInvoke.SetWindowPos(Handle, HWND.Null, x, y, width, height, SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+
     public void Hide()
     {
         if (!IsShown)
