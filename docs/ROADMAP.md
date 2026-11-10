@@ -50,8 +50,8 @@
 - [x] Graceful degradation when DDC fails (fall back to pass-through, log once, tray badge)
 
 ### M6. Settings + tray UX
-- [ ] Settings window: monitors list, per-monitor "DDC volume" toggle, endpoint mapping, step size, volume polling interval, "Windows volume controls the monitor" (mirror, off by default), start with Windows (HKCU Run)
-- [ ] Tray flyout: per-monitor volume + brightness sliders
+- [x] Settings window: monitors list, per-monitor "DDC volume" toggle, endpoint mapping, step size, volume polling interval, "Windows volume controls the monitor" (mirror, off by default), start with Windows (HKCU Run)
+- [x] Tray flyout: per-monitor volume + brightness sliders
 
 ### M7. Release
 - [ ] Velopack packaging, GitHub Release workflow, auto-update check
