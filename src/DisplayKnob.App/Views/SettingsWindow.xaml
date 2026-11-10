@@ -255,7 +255,7 @@
                     <TextBlock Text="{x:Bind Name}" />
                     <TextBlock Style="{StaticResource DescriptionStyle}" Text="{x:Bind Details}" />
                   </StackPanel>
-                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock VerticalAlignment="Center" Style="{StaticResource DescriptionStyle}" Text="Control volume" />
                     <ToggleSwitch MinWidth="0" OnContent="" OffContent="" IsOn="{x:Bind DdcVolumeEnabled, Mode=TwoWay}" />
                   </StackPanel>
@@ -265,7 +265,9 @@
                   </StackPanel>
                   <!-- The box applies its value on Enter or when it loses focus; the button is for people who click away instead. -->
                   <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- A fixed width: the column is Auto-sized, so a long typed value would otherwise push the toggle above it around. -->
                     <NumberBox
+                        Width="140"
                         VerticalAlignment="Center"
                         Minimum="10"
                         Maximum="100"
