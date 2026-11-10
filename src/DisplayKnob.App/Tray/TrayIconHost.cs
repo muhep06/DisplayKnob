@@ -6,11 +6,11 @@ using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Displays;
 using DisplayKnob.Core.Volume;
 using H.NotifyIcon;
-using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Serilog;
+using Windows.Win32;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace DisplayKnob.App.Tray;
 
@@ -19,12 +19,11 @@ namespace DisplayKnob.App.Tray;
 /// </summary>
 internal sealed class TrayIconHost : IDisposable
 {
-    private const string IdleText = "DK";
     private const string IdleToolTip = "DisplayKnob";
     private const string CheckForUpdatesText = "Check for updates";
 
     private readonly TaskbarIcon _icon;
-    private readonly GeneratedIconSource _iconSource;
+    private readonly KnobIconSet _icons = new(GetNotificationIconSize());
     private readonly MonitorProbe _probe;
     private readonly VolumeController _volume;
     private readonly AudioMonitorMapper _mapper;
@@ -32,8 +31,6 @@ internal sealed class TrayIconHost : IDisposable
     private readonly MenuFlyoutItem? _updateItem;
     private readonly DispatcherQueue _dispatcher;
     private readonly ILogger _logger;
-    private readonly SolidColorBrush _normalBackground = new(Colors.SteelBlue);
-    private readonly SolidColorBrush _warningBackground = new(Colors.DarkOrange);
     private VolumeChangedEventArgs? _lastLevel; // UI thread only.
     private Guid? _iconId;
 
@@ -70,22 +67,14 @@ internal sealed class TrayIconHost : IDisposable
             Command = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty)),
         });
 
-        // Placeholder until a real icon asset exists. While a monitor is the volume target it shows the level.
-        _iconSource = new GeneratedIconSource
-        {
-            Text = IdleText,
-            FontSize = 36,
-            Foreground = new SolidColorBrush(Colors.White),
-            Background = _normalBackground,
-        };
-
+        // The knob's pointer turns with the volume of the monitor the keys control.
         _icon = new TaskbarIcon
         {
             ToolTipText = IdleToolTip,
             // Native Win32 popup menu: works without any XAML window.
             ContextMenuMode = ContextMenuMode.PopupMenu,
             ContextFlyout = menu,
-            IconSource = _iconSource,
+            Icon = _icons.Idle,
             LeftClickCommand = new RelayCommand(() => FlyoutRequested?.Invoke(this, EventArgs.Empty)),
             NoLeftClickDelay = true, // We don't use double-click; don't wait to rule it out.
         };
@@ -134,33 +123,34 @@ internal sealed class TrayIconHost : IDisposable
         var target = _mapper.Current;
         if (target is null)
         {
-            SetIcon(IdleText, IdleToolTip, warning: false);
+            SetIcon(_icons.Idle, IdleToolTip);
         }
         else if (!_volume.IsTargetResponding)
         {
-            SetIcon("!", $"{target.Monitor.DisplayName} doesn't answer DDC. The volume keys control Windows for now.", warning: true);
+            SetIcon(_icons.Get(KnobIconSet.IdleLevel, KnobIconMode.Warning), $"{target.Monitor.DisplayName} doesn't answer DDC. The volume keys control Windows for now.");
         }
         else if (_lastLevel is { } last && last.MonitorName == target.Monitor.DisplayName)
         {
-            var text = last.Muted ? "×" : last.Level.ToString(CultureInfo.InvariantCulture);
             var toolTip = last.Muted
                 ? $"{last.MonitorName}: muted"
                 : $"{last.MonitorName}: {last.Level.ToString(CultureInfo.CurrentCulture)}%";
-            SetIcon(text, toolTip, warning: false);
+            SetIcon(_icons.Get(last.Level, last.Muted ? KnobIconMode.Muted : KnobIconMode.Normal), toolTip);
         }
         else
         {
-            SetIcon(IdleText, $"{IdleToolTip}: {target.Monitor.DisplayName}", warning: false);
+            SetIcon(_icons.Idle, $"{IdleToolTip}: {target.Monitor.DisplayName}");
         }
     }
 
-    private void SetIcon(string text, string toolTip, bool warning)
+    private void SetIcon(System.Drawing.Icon icon, string toolTip)
     {
-        _iconSource.Text = text;
-        _iconSource.FontSize = text.Length >= 3 ? 26 : 36;
-        _iconSource.Background = warning ? _warningBackground : _normalBackground;
+        _icon.Icon = icon;
         _icon.ToolTipText = toolTip;
     }
+
+    // The shell asks for a specific small-icon size (16 px at 100% scale, more on larger scales).
+    private static int GetNotificationIconSize() =>
+        Math.Max(16, PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSMICON));
 
     /// <summary>Looks for a new version without bothering the user unless there is one. Call once at startup.</summary>
     public async Task CheckForUpdatesInBackgroundAsync()
