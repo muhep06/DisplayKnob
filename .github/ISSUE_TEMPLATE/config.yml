@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting guide
+    url: https://github.com/muhep06/DisplayKnob/blob/main/docs/TROUBLESHOOTING.md
+    about: Most DDC/CI problems are covered here.
+  - name: Report a security vulnerability
+    url: https://github.com/muhep06/DisplayKnob/security/advisories/new
+    about: Please report security problems privately, not as a public issue.

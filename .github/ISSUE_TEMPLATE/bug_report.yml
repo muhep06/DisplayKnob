@@ -1,0 +1,69 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Real DDC/CI behavior varies a lot between monitors, so the details below make a big difference. Please also check the [troubleshooting guide](https://github.com/muhep06/DisplayKnob/blob/main/docs/TROUBLESHOOTING.md) first.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Quick checks
+      options:
+        - label: DDC/CI is enabled in my monitor's on-screen menu.
+        - label: The monitor is the Windows audio output (HDMI or DisplayPort audio).
+
+  - type: input
+    id: version
+    attributes:
+      label: DisplayKnob version
+      description: Shown in the log's first line ("DisplayKnob x.y.z starting") or the installer's file name.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+
+  - type: input
+    id: monitor
+    attributes:
+      label: Monitor model(s)
+      placeholder: "Samsung S34C65xU"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: How is the monitor connected?
+      options:
+        - Directly (DisplayPort)
+        - Directly (HDMI)
+        - Through a KVM switch
+        - Through a dock or adapter
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: probe
+    attributes:
+      label: Probe log
+      description: Tray menu → "Probe monitors", then "Open log folder" and paste the relevant lines (or attach the log file). It lists each monitor with its capabilities and current values.
+      render: text
