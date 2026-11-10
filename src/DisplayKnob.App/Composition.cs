@@ -1,5 +1,6 @@
 using DisplayKnob.App.Osd;
 using DisplayKnob.App.Tray;
+using DisplayKnob.App.Updates;
 using DisplayKnob.App.ViewModels;
 using DisplayKnob.App.Views;
 using DisplayKnob.Core;
@@ -18,6 +19,7 @@ internal static class Composition
 
         services.AddSingleton(logger);
         services.AddDisplayKnobCore();
+        services.AddSingleton<UpdateService>();
         services.AddSingleton<TrayIconHost>();
         services.AddSingleton<TrayWheelHandler>();
         services.AddSingleton<TrayFlyoutViewModel>();

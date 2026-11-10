@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.Input;
+using DisplayKnob.App.Updates;
 using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Displays;
 using DisplayKnob.Core.Volume;
@@ -20,12 +21,15 @@ internal sealed class TrayIconHost : IDisposable
 {
     private const string IdleText = "DK";
     private const string IdleToolTip = "DisplayKnob";
+    private const string CheckForUpdatesText = "Check for updates";
 
     private readonly TaskbarIcon _icon;
     private readonly GeneratedIconSource _iconSource;
     private readonly MonitorProbe _probe;
     private readonly VolumeController _volume;
     private readonly AudioMonitorMapper _mapper;
+    private readonly UpdateService _updates;
+    private readonly MenuFlyoutItem? _updateItem;
     private readonly DispatcherQueue _dispatcher;
     private readonly ILogger _logger;
     private readonly SolidColorBrush _normalBackground = new(Colors.SteelBlue);
@@ -33,11 +37,12 @@ internal sealed class TrayIconHost : IDisposable
     private VolumeChangedEventArgs? _lastLevel; // UI thread only.
     private Guid? _iconId;
 
-    public TrayIconHost(MonitorProbe probe, VolumeController volume, AudioMonitorMapper mapper, ILogger logger)
+    public TrayIconHost(MonitorProbe probe, VolumeController volume, AudioMonitorMapper mapper, UpdateService updates, ILogger logger)
     {
         _probe = probe;
         _volume = volume;
         _mapper = mapper;
+        _updates = updates;
         _logger = logger.ForContext<TrayIconHost>();
         _dispatcher = DispatcherQueue.GetForCurrentThread()
             ?? throw new InvalidOperationException("TrayIconHost must be created on the UI thread.");
@@ -51,6 +56,13 @@ internal sealed class TrayIconHost : IDisposable
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem { Text = "Probe monitors", Command = new AsyncRelayCommand(ProbeAsync) });
         menu.Items.Add(new MenuFlyoutItem { Text = "Open log folder", Command = new RelayCommand(OpenLogFolder) });
+        if (_updates.IsInstalled)
+        {
+            // Dev builds and plain bin folders can't update, so they don't get the item.
+            _updateItem = new MenuFlyoutItem { Text = CheckForUpdatesText, Command = new AsyncRelayCommand(OnUpdateClickedAsync) };
+            menu.Items.Add(_updateItem);
+        }
+
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem
         {
@@ -148,6 +160,50 @@ internal sealed class TrayIconHost : IDisposable
         _iconSource.FontSize = text.Length >= 3 ? 26 : 36;
         _iconSource.Background = warning ? _warningBackground : _normalBackground;
         _icon.ToolTipText = toolTip;
+    }
+
+    /// <summary>Looks for a new version without bothering the user unless there is one. Call once at startup.</summary>
+    public async Task CheckForUpdatesInBackgroundAsync()
+    {
+        if (await _updates.CheckAsync())
+        {
+            AnnounceUpdate();
+        }
+    }
+
+    private async Task OnUpdateClickedAsync()
+    {
+        if (_updates.PendingVersion is null)
+        {
+            if (await _updates.CheckAsync())
+            {
+                AnnounceUpdate();
+            }
+            else
+            {
+                _icon.ShowNotification("DisplayKnob", "You're up to date.");
+            }
+
+            return;
+        }
+
+        _icon.ShowNotification("DisplayKnob", "Downloading the update. DisplayKnob will restart.");
+        if (!await _updates.ApplyPendingAsync())
+        {
+            _icon.ShowNotification("DisplayKnob", "The update failed. See the log.");
+        }
+    }
+
+    // The menu item turns into "install"; installing restarts the app, so it is the user's call.
+    private void AnnounceUpdate()
+    {
+        var text = $"Install update {_updates.PendingVersion} and restart";
+        if (_updateItem is not null)
+        {
+            _updateItem.Text = text;
+        }
+
+        _icon.ShowNotification("DisplayKnob", $"Version {_updates.PendingVersion} is available. Use the tray menu to install it.");
     }
 
     private async Task ProbeAsync()

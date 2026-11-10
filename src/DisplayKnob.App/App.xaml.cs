@@ -51,6 +51,7 @@ public partial class App : Application
         PreviewOsdIfRequested(osd);
 
         _ = StartCoreAsync(_services);
+        _ = _tray.CheckForUpdatesInBackgroundAsync();
     }
 
     // Debug builds only: DISPLAYKNOB_OSD_PREVIEW=<level> or "muted" shows the OSD once at startup,
