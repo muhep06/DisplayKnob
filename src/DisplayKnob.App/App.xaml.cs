@@ -51,6 +51,7 @@ public partial class App : Application
         PreviewOsdIfRequested(osd);
 
         _ = StartCoreAsync(_services);
+        _services.GetRequiredService<StartupOffer>().OfferOnFirstRun();
         _ = _tray.CheckForUpdatesInBackgroundAsync();
     }
 

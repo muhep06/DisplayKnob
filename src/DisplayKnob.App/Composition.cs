@@ -21,6 +21,7 @@ internal static class Composition
         services.AddDisplayKnobCore();
         services.AddSingleton<UpdateService>();
         services.AddSingleton<TrayIconHost>();
+        services.AddSingleton<StartupOffer>();
         services.AddSingleton<TrayWheelHandler>();
         services.AddSingleton<TrayFlyoutViewModel>();
         services.AddSingleton<TrayFlyoutPresenter>();

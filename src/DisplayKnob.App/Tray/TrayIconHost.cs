@@ -6,6 +6,7 @@ using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Displays;
 using DisplayKnob.Core.Volume;
 using H.NotifyIcon;
+using H.NotifyIcon.Core;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Controls;
 using Serilog;
@@ -32,6 +33,7 @@ internal sealed class TrayIconHost : IDisposable
     private readonly DispatcherQueue _dispatcher;
     private readonly ILogger _logger;
     private VolumeChangedEventArgs? _lastLevel; // UI thread only.
+    private string? _lastNotificationTag; // UI thread only.
     private Guid? _iconId;
 
     public TrayIconHost(MonitorProbe probe, VolumeController volume, AudioMonitorMapper mapper, UpdateService updates, ILogger logger)
@@ -91,6 +93,22 @@ internal sealed class TrayIconHost : IDisposable
     /// <summary>The icon was left-clicked: show or hide the flyout.</summary>
     public event EventHandler? FlyoutRequested;
 
+    /// <summary>
+    /// The user clicked the most recent notification; the argument is the tag it was shown with (see <see cref="Notify"/>).
+    /// Windows only reports a click on the last notification, so a click on an older one can't be told apart.
+    /// </summary>
+    public event EventHandler<string?>? NotificationClicked;
+
+    /// <summary>
+    /// Shows a notification from the tray icon. <paramref name="tag"/> comes back with <see cref="NotificationClicked"/>,
+    /// so a notification that asks something can tell its own click from another notification's.
+    /// </summary>
+    public void Notify(string message, string? tag = null)
+    {
+        _lastNotificationTag = tag;
+        _icon.ShowNotification("DisplayKnob", message);
+    }
+
     /// <summary>The shell's id for the icon (set once shown). Readable from any thread.</summary>
     public Guid? IconId => _iconId;
 
@@ -98,6 +116,16 @@ internal sealed class TrayIconHost : IDisposable
     {
         _icon.ForceCreate(enablesEfficiencyMode: false);
         _iconId = _icon.Id; // TaskbarIcon is a DependencyObject; cache the id for other threads.
+        _icon.TrayIcon.MessageWindow.MouseEventReceived += OnTrayMouseEvent;
+    }
+
+    // A click on a notification arrives as a mouse event of the icon's message window.
+    private void OnTrayMouseEvent(object? sender, MessageWindow.MouseEventReceivedEventArgs e)
+    {
+        if (e.MouseEvent == MouseEvent.BalloonToolTipClicked)
+        {
+            _dispatcher.TryEnqueue(() => NotificationClicked?.Invoke(this, _lastNotificationTag));
+        }
     }
 
     public void Dispose()
@@ -171,16 +199,16 @@ internal sealed class TrayIconHost : IDisposable
             }
             else
             {
-                _icon.ShowNotification("DisplayKnob", "You're up to date.");
+                Notify("You're up to date.");
             }
 
             return;
         }
 
-        _icon.ShowNotification("DisplayKnob", "Downloading the update. DisplayKnob will restart.");
+        Notify("Downloading the update. DisplayKnob will restart.");
         if (!await _updates.ApplyPendingAsync())
         {
-            _icon.ShowNotification("DisplayKnob", "The update failed. See the log.");
+            Notify("The update failed. See the log.");
         }
     }
 
@@ -193,7 +221,7 @@ internal sealed class TrayIconHost : IDisposable
             _updateItem.Text = text;
         }
 
-        _icon.ShowNotification("DisplayKnob", $"Version {_updates.PendingVersion} is available. Use the tray menu to install it.");
+        Notify($"Version {_updates.PendingVersion} is available. Use the tray menu to install it.");
     }
 
     private async Task ProbeAsync()
@@ -201,13 +229,13 @@ internal sealed class TrayIconHost : IDisposable
         try
         {
             await _probe.RunAsync();
-            _icon.ShowNotification("DisplayKnob", "Monitor probe finished. Results are in the log.");
+            Notify("Monitor probe finished. Results are in the log.");
         }
         catch (Exception ex)
         {
             // Probe is diagnostic; a bug in it must not take the app down.
             _logger.Error(ex, "Monitor probe failed");
-            _icon.ShowNotification("DisplayKnob", "Monitor probe failed. See the log.");
+            Notify("Monitor probe failed. See the log.");
         }
     }
 

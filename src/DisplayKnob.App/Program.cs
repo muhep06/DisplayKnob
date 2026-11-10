@@ -1,3 +1,4 @@
+using DisplayKnob.Core.Platform;
 using Velopack;
 
 namespace DisplayKnob.App;
@@ -11,7 +12,10 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        VelopackApp.Build().Run();
+        // On uninstall, remove the "start with Windows" entries so none is left pointing at a deleted exe.
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => StartupEntries.Remove())
+            .Run();
 
         // The XAML compiler's own Main is disabled (DISABLE_XAML_GENERATED_MAIN); this is its body.
         XamlGeneratedProgram.XamlGeneratedMain();
