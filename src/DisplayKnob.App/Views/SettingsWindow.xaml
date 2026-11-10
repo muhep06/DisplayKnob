@@ -36,11 +36,8 @@
     </Grid.RowDefinitions>
 
     <!-- Content extends into the title bar so Mica runs edge to edge, like Windows Settings. -->
-    <TitleBar x:Name="AppTitleBar" Height="48" Title="DisplayKnob">
-      <TitleBar.IconSource>
-        <FontIconSource Glyph="&#xE7F4;" />
-      </TitleBar.IconSource>
-    </TitleBar>
+    <!-- The icon is set in code (it is a file next to the exe). -->
+    <TitleBar x:Name="AppTitleBar" Height="48" Title="DisplayKnob" />
 
     <!-- The page title stays put, like Windows Settings, so the cards scroll away below it rather than under the title bar. -->
     <Border Grid.Row="1" MaxWidth="1000" Padding="24,4,24,8" HorizontalAlignment="Stretch">

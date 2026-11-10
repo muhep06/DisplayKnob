@@ -51,6 +51,7 @@ jobs:
           --packVersion ${{ steps.version.outputs.value }}
           --packDir publish
           --mainExe DisplayKnob.exe
+          --icon src/DisplayKnob.App/Assets/DisplayKnob.ico
           --outputDir Releases
 
       - name: Upload to GitHub Release

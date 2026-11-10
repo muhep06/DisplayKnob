@@ -5,6 +5,7 @@
     <RootNamespace>DisplayKnob.App</RootNamespace>
     <AssemblyName>DisplayKnob</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\DisplayKnob.ico</ApplicationIcon>
     <Platforms>x64;ARM64</Platforms>
     <!-- WinUI has no AnyCPU build; building the project on its own must land in the same bin\x64 folder as the solution build. -->
     <Platform Condition="'$(Platform)' == '' or '$(Platform)' == 'AnyCPU'">x64</Platform>
@@ -35,6 +36,11 @@
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Velopack" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Also next to the exe: the settings window loads it for its title bar and taskbar button. -->
+    <Content Include="Assets\DisplayKnob.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
