@@ -47,4 +47,15 @@
     <ProjectReference Include="..\DisplayKnob.Core\DisplayKnob.Core.csproj" />
   </ItemGroup>
 
+  <!-- `dotnet publish` leaves out the compiled XAML (.xbf) and the project's resource index (.pri) of an unpackaged
+       WinUI app, so a published exe fails to load its first window (XamlParseException at startup). Both are in the
+       build output; add them to the publish list. -->
+  <Target Name="IncludeWinUIOutputInPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <_WinUIOutput Include="$(OutDir)**\*.xbf" />
+      <_WinUIOutput Include="$(OutDir)$(AssemblyName).pri" />
+      <ResolvedFileToPublish Include="@(_WinUIOutput)" RelativePath="%(_WinUIOutput.RecursiveDir)%(_WinUIOutput.Filename)%(_WinUIOutput.Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
 </Project>
