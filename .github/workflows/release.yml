@@ -1,0 +1,64 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the installer and publish a GitHub Release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Version from tag
+        id: version
+        shell: bash
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Publish
+        run: >
+          dotnet publish src/DisplayKnob.App/DisplayKnob.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --output publish
+          -p:Version=${{ steps.version.outputs.value }}
+
+      # Same version as the Velopack package the app references.
+      - name: Install vpk
+        run: dotnet tool install --global vpk --version 1.2.161
+
+      # Previous releases let vpk build small delta updates. The first release has none, so don't fail on that.
+      - name: Download previous releases
+        continue-on-error: true
+        run: vpk download github --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Pack
+        run: >
+          vpk pack
+          --packId DisplayKnob
+          --packTitle DisplayKnob
+          --packVersion ${{ steps.version.outputs.value }}
+          --packDir publish
+          --mainExe DisplayKnob.exe
+          --outputDir Releases
+
+      - name: Upload to GitHub Release
+        run: >
+          vpk upload github
+          --repoUrl "${{ github.server_url }}/${{ github.repository }}"
+          --token "${{ secrets.GITHUB_TOKEN }}"
+          --tag ${{ github.ref_name }}
+          --releaseName "DisplayKnob ${{ steps.version.outputs.value }}"
+          --publish
+          --outputDir Releases
