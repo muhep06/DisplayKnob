@@ -116,6 +116,46 @@ public sealed class VolumeControllerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task MaxVolumePercent_ScalesUserRangeOntoTheLimit()
+    {
+        // The limit is 50% of the monitor's range, so raw 30 is 60% of the user scale.
+        await StartAsync();
+        await AfterRefreshAsync(_controller, () => SetMonitorSettings(new MonitorSettings { MaxVolumePercent = 50 }));
+        var levels = new List<int>();
+        _controller.VolumeChanged += (_, e) => levels.Add(e.Level);
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.Equal([62], levels);
+        Assert.Equal(31u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
+    public async Task Up_MonitorAboveTheLimit_PullsTheVolumeDownToTheLimit()
+    {
+        // Another machine (or the monitor's buttons) left the volume at 80; the limit is 60.
+        _monitor.SetValue(VcpCodes.AudioVolume, 80, 100);
+        SetMonitorSettings(new MonitorSettings { MaxVolumePercent = 60 });
+        await StartAsync();
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.Equal(60u, _monitor.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
+    public async Task Up_AtTheLimit_DoesNotWrite()
+    {
+        _monitor.SetValue(VcpCodes.AudioVolume, 60, 100);
+        SetMonitorSettings(new MonitorSettings { MaxVolumePercent = 60 });
+        await StartAsync();
+
+        await ProcessAsync(VolumeAction.Up);
+
+        Assert.DoesNotContain(_monitor.Writes, w => w.Code == VcpCodes.AudioVolume);
+    }
+
+    [Fact]
     public async Task Steps_WithinIdleWindow_DoNotReread()
     {
         await StartAsync();

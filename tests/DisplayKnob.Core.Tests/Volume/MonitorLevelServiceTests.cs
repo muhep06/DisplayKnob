@@ -95,6 +95,18 @@ public sealed class MonitorLevelServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task SetVolume_NonTarget_HonorsTheMaximumVolumePercent()
+    {
+        _settings.Update(s => s with { Monitors = new Dictionary<string, MonitorSettings> { [_other.Identity.Key] = new() { MaxVolumePercent = 40 } } });
+        await _registry.RefreshAsync(Ct);
+
+        _service.SetVolume(Other, 50, 100);
+        await Other.ReadVcpAsync(VcpCodes.Brightness, Ct);
+
+        Assert.Equal(20u, _other.GetCurrent(VcpCodes.AudioVolume));
+    }
+
+    [Fact]
     public async Task IsVolumeTarget_FollowsMapper()
     {
         await _registry.RefreshAsync(Ct);

@@ -199,10 +199,14 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
                 VolumeAction.Up => Math.Clamp(state.Level + step, 0, 100),
                 _ => Math.Clamp(state.Level - step, 0, 100),
             };
-            if (level != state.Level)
+            // Also write when the monitor sits above the volume limit (set from its own buttons, or from another
+            // machine): at level 100 the level doesn't change, but the sound is louder than the limit allows.
+            var raw = ToRaw(state, level);
+            if (level != state.Level || raw != state.Raw)
             {
                 state.Level = level;
-                state.Monitor.WriteVcp(VcpCodes.AudioVolume, ToRaw(state, level));
+                state.Raw = raw;
+                state.Monitor.WriteVcp(VcpCodes.AudioVolume, raw);
             }
         }
 
@@ -256,7 +260,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
 
         MarkResponding(monitor);
-        var state = new MonitorState(monitor, v.Maximum) { LastUsed = _timeProvider.GetUtcNow() };
+        var state = new MonitorState(monitor, v.Maximum) { Raw = v.Current, LastUsed = _timeProvider.GetUtcNow() };
 
         // Re-enumeration creates a new worker for the same monitor; compare identities so an emulated mute survives.
         var sameMonitor = previous is not null && previous.Monitor.Identity.Key == monitor.Identity.Key;
@@ -431,7 +435,8 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
 
         // Raw 0 is silent regardless of the user range; the tracked level is what unmute restores.
-        state.Monitor.WriteVcp(VcpCodes.AudioVolume, muted ? 0 : ToRaw(state, state.Level));
+        state.Raw = muted ? 0 : ToRaw(state, state.Level);
+        state.Monitor.WriteVcp(VcpCodes.AudioVolume, state.Raw);
         state.Muted = muted;
     }
 
@@ -478,6 +483,9 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         public DdcWorker Monitor { get; }
 
         public uint RawMax { get; }
+
+        /// <summary>The raw VCP 0x62 value as last read or written.</summary>
+        public uint Raw { get; set; }
 
         public int Level { get; set; }
 

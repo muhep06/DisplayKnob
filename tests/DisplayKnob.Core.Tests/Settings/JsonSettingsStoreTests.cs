@@ -55,6 +55,30 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Update_MaxVolumePercent_PersistsAcrossInstances()
+    {
+        var store = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        store.Update(s => s with { Monitors = new Dictionary<string, MonitorSettings> { ["DEL4123-ABC|PATH"] = new() { MaxVolumePercent = 55 } } });
+        var reloaded = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        Assert.Equal(55, reloaded.Current.ForMonitor("DEL4123-ABC|PATH").MaxVolumePercent);
+    }
+
+    [Fact]
+    public void Constructor_MonitorEntryWithoutMaxVolumePercent_UsesFullRange()
+    {
+        // A file saved before the option existed.
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(SettingsPath, """{ "monitors": { "DEL4123-ABC|PATH": { "ddcVolumeEnabled": false } } }""");
+
+        var monitor = new JsonSettingsStore(SettingsPath, Logger.None).Current.ForMonitor("DEL4123-ABC|PATH");
+
+        Assert.False(monitor.DdcVolumeEnabled);
+        Assert.Equal(100, monitor.MaxVolumePercent);
+    }
+
+    [Fact]
     public void Constructor_CorruptFile_UsesDefaultsAndKeepsBackup()
     {
         Directory.CreateDirectory(_dir);

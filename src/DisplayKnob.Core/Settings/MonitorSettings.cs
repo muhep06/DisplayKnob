@@ -23,10 +23,28 @@ public sealed record MonitorSettings
     /// </summary>
     public uint? VolumeMax { get; set; }
 
+    /// <summary>Lowest <see cref="MaxVolumePercent"/> that is honored; below it the volume would be unusably coarse.</summary>
+    public const int MinMaxVolumePercent = 10;
+
+    /// <summary>
+    /// The volume limit, as a percentage of the monitor's reported range (10–100). The 0–100 user scale is
+    /// squeezed into the range up to this limit, so 100% on the keys, sliders and the on-screen indicator
+    /// is the limit. A percentage, unlike <see cref="VolumeMax"/>, needs no knowledge of the monitor's raw maximum,
+    /// so it can be set while the monitor isn't answering.
+    /// </summary>
+    public int MaxVolumePercent { get; set; } = 100;
+
     /// <summary>The usable raw volume range, given the maximum the monitor reports.</summary>
     public (uint Min, uint Max) GetVolumeRange(uint reportedMax)
     {
-        var max = Math.Min(VolumeMax ?? reportedMax, reportedMax);
+        var percent = Math.Clamp(MaxVolumePercent, MinMaxVolumePercent, 100);
+        var limit = (uint)Math.Round(reportedMax * percent / 100.0, MidpointRounding.AwayFromZero);
+        if (reportedMax > 0)
+        {
+            limit = Math.Max(limit, 1); // A tiny range must not collapse to nothing.
+        }
+
+        var max = Math.Min(Math.Min(VolumeMax ?? reportedMax, reportedMax), limit);
         var min = Math.Min(VolumeMin ?? 0, max);
         return (min, max);
     }
