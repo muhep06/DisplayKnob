@@ -29,9 +29,20 @@
         <Setter Property="TextWrapping" Value="Wrap" />
       </Style>
     </Grid.Resources>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
 
-    <ScrollViewer>
-      <StackPanel MaxWidth="760" Padding="24,16,24,32" Spacing="4">
+    <!-- Content extends into the title bar so Mica runs edge to edge, like Windows Settings. -->
+    <TitleBar x:Name="AppTitleBar" Title="DisplayKnob">
+      <TitleBar.IconSource>
+        <FontIconSource Glyph="&#xE7F4;" />
+      </TitleBar.IconSource>
+    </TitleBar>
+
+    <ScrollViewer Grid.Row="1">
+      <StackPanel MaxWidth="760" Padding="24,4,24,32" Spacing="4">
         <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Settings" Margin="0,0,0,4" />
 
         <!-- General -->

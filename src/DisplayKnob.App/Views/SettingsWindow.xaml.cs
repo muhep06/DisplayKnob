@@ -1,4 +1,5 @@
 using DisplayKnob.App.ViewModels;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Windows.Graphics;
 using Windows.Win32;
@@ -17,6 +18,10 @@ internal sealed partial class SettingsWindow : Window
         ViewModel = viewModel;
         ViewModel.Load();
         InitializeComponent();
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall; // Caption buttons match the 48 px TitleBar.
 
         // AppWindow sizes are in physical pixels.
         var hwnd = new HWND(WinRT.Interop.WindowNative.GetWindowHandle(this));
