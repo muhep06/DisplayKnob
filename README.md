@@ -25,13 +25,15 @@ It starts with volume. Share one monitor between a Mac and a Windows PC through 
 
 Brightness is already there. Input switching, display presets and more are on the [roadmap](#roadmap). No drivers, no admin rights.
 
-<!--
-TODO: screenshots. Add two images to docs/assets/ and uncomment.
+<p align="center">
+  <img src="docs/assets/settings.png" width="520" alt="The settings window">
+  &nbsp;&nbsp;
+  <img src="docs/assets/flyout.png" width="300" alt="The tray flyout with brightness and volume sliders">
+</p>
 
-| ![Tray flyout](docs/assets/flyout.png) | ![Settings window](docs/assets/settings.png) |
-|:---:|:---:|
-| Click the tray icon for volume and brightness sliders. The knob's pointer follows the volume. | Per-monitor limit and curve, shortcuts, audio output mapping. |
--->
+<p align="center">
+  <sub>Settings (left) and the tray flyout (right): click the tray icon for volume and brightness sliders. The knob's pointer follows the volume.</sub>
+</p>
 
 ## Features
 
