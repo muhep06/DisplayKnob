@@ -1,5 +1,6 @@
 using DisplayKnob.Core.Input;
 using DisplayKnob.Core.Platform;
+using DisplayKnob.Core.Settings;
 
 namespace DisplayKnob.Core.Volume;
 
@@ -18,12 +19,14 @@ internal sealed class HookVolumeSource : IVolumeSource
 
     private readonly KeyboardHookService _hook;
     private readonly ISystemEventSource _events;
+    private readonly ISettingsStore _settings;
     private readonly ITimer _reinstallTimer;
 
-    public HookVolumeSource(KeyboardHookService hook, ISystemEventSource events, TimeProvider timeProvider)
+    public HookVolumeSource(KeyboardHookService hook, ISystemEventSource events, ISettingsStore settings, TimeProvider timeProvider)
     {
         _hook = hook;
         _events = events;
+        _settings = settings;
         _reinstallTimer = timeProvider.CreateTimer(_ => _hook.Reinstall(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
@@ -32,18 +35,26 @@ internal sealed class HookVolumeSource : IVolumeSource
         ArgumentNullException.ThrowIfNull(sink);
 
         // Runs inside the hook callback: TryPost is non-blocking and decides swallow vs. pass-through.
+        // For a keyboard shortcut "declined" means the Windows volume changes instead (the hook does that).
         _hook.Start(press => sink.TryPost(new VolumeCommand(ToAction(press.Key), press.Fine)));
 
+        ApplyHotkeys();
+        _settings.Changed += OnSettingsChanged;
         _events.SystemEventOccurred += OnSystemEvent;
         _reinstallTimer.Change(ReinstallInterval, ReinstallInterval);
     }
 
     public void Dispose()
     {
+        _settings.Changed -= OnSettingsChanged;
         _events.SystemEventOccurred -= OnSystemEvent;
         _reinstallTimer.Dispose();
         _hook.Dispose();
     }
+
+    private void OnSettingsChanged(object? sender, EventArgs e) => ApplyHotkeys();
+
+    private void ApplyHotkeys() => _hook.SetHotkeys(_settings.Current.Hotkeys.Resolve());
 
     private void OnSystemEvent(object? sender, SystemEventArgs e)
     {

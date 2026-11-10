@@ -24,6 +24,8 @@ PostThreadMessage
 GetCurrentThreadId
 GetModuleHandle
 GetAsyncKeyState
+SendInput
+INPUT
 KBDLLHOOKSTRUCT
 VIRTUAL_KEY
 WM_KEYDOWN
