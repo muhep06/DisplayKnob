@@ -265,9 +265,10 @@
                   </StackPanel>
                   <!-- The box applies its value on Enter or when it loses focus; the button is for people who click away instead. -->
                   <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <!-- A fixed width: the column is Auto-sized, so a long typed value would otherwise push the toggle above it around. -->
+                    <!-- A fixed width, so a long typed value can't push the toggle above it around. Wide enough for the
+                         clear button and both spin buttons that appear while the box has focus, which leave little room for the text. -->
                     <NumberBox
-                        Width="140"
+                        Width="200"
                         VerticalAlignment="Center"
                         Minimum="10"
                         Maximum="100"
