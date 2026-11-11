@@ -31,14 +31,19 @@ Work happens on short-lived branches cut from `main`, named after the Convention
 | `chore/` | CI, dependencies, maintenance | `chore/update-velopack` |
 
 - Use lowercase words separated by hyphens. Delete the branch after it is merged.
-- PRs are **squash-merged**. The PR title becomes the commit on `main`, so write it as a Conventional Commit (`fix(ddc): ...`).
+- A PR with one logical change is **squash-merged**. The PR title becomes the commit on `main` and the PR description its body, so write the title as a Conventional Commit (`fix(ddc): ...`) and explain *why* in the description.
+- A PR made of several commits, each a logical change that builds and passes the tests on its own, is **rebase-merged**, so the commits stay separate on `main`.
 - A release is a `vX.Y.Z` tag on a green `main`; the Release workflow builds the installer from it.
 - If a released version needs a fix while `main` has moved on, cut `release/X.Y` from its tag, fix there, and tag a patch release. Don't create these branches ahead of time.
 
 ## Pull requests
 
 - Keep PRs small and focused. Open an issue first for larger changes.
-- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(ddc): ...`, `fix(audio): ...`, `docs: ...`, `chore: ...`.
+- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(ddc): ...`, `fix(audio): ...`, `test: ...`, `docs: ...`, `chore: ...`.
+  - Subject: imperative, lowercase, no final period, ideally 50 characters and at most 72.
+  - Body, after a blank line and wrapped at 72 columns: say *why* the change is needed, not what the diff shows.
+  - One logical change per commit. Don't mix a feature, its settings UI, a debug tool and docs in one commit.
+  - No `Co-Authored-By` or other trailers.
 - `dotnet build` must pass with no warnings in `DisplayKnob.Core` (warnings are errors there) and `dotnet test` must pass.
 - Don't swap a part of the tech stack or add a NuGet package without discussing it in an issue first.
 
