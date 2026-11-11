@@ -10,6 +10,7 @@ internal enum HotkeySlot
     Up,
     Down,
     Mute,
+    ToggleGroup,
 }
 
 /// <summary>One recordable shortcut in the settings window (for the Custom preset).</summary>

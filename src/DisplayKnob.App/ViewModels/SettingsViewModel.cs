@@ -52,6 +52,9 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public IReadOnlyList<string> PollChoiceNames { get; } =
         [.. PollChoices.Select(s => s == 0 ? "Off" : $"Every {s} seconds")];
 
+    /// <summary>In the order of <see cref="GroupOsdMode"/>, so the combo box index is the enum value.</summary>
+    public IReadOnlyList<string> GroupOsdNames { get; } = ["On every monitor in the group", "Only on the audio monitor"];
+
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
 
@@ -71,6 +74,13 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public partial bool MirrorWindowsVolume { get; set; }
 
     [ObservableProperty]
+    public partial bool VolumeGroupEnabled { get; set; }
+
+    /// <summary>Index into <see cref="GroupOsdNames"/> (the same order as <see cref="GroupOsdMode"/>).</summary>
+    [ObservableProperty]
+    public partial int GroupOsdIndex { get; set; }
+
+    [ObservableProperty]
     public partial bool HasNoMonitors { get; set; }
 
     /// <summary>Reads the current state into the view model. Call each time the window opens.</summary>
@@ -87,6 +97,8 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
             PollIndex = pollIndex >= 0 ? pollIndex : PollChoices.ToList().IndexOf(10); // A hand-edited value shows as the default.
             PinEndpointVolume = current.PinEndpointVolume;
             MirrorWindowsVolume = current.MirrorWindowsVolume;
+            VolumeGroupEnabled = current.VolumeGroupEnabled;
+            GroupOsdIndex = (int)current.VolumeGroupOsd;
             Hotkeys.Load();
 
             var monitors = _registry.Monitors;
@@ -147,6 +159,16 @@ internal sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnPinEndpointVolumeChanged(bool value) => Save(s => s with { PinEndpointVolume = value });
 
     partial void OnMirrorWindowsVolumeChanged(bool value) => Save(s => s with { MirrorWindowsVolume = value });
+
+    partial void OnVolumeGroupEnabledChanged(bool value) => Save(s => s with { VolumeGroupEnabled = value });
+
+    partial void OnGroupOsdIndexChanged(int value)
+    {
+        if (value >= 0 && value < GroupOsdNames.Count)
+        {
+            Save(s => s with { VolumeGroupOsd = (GroupOsdMode)value });
+        }
+    }
 
     private void Save(Func<DisplayKnobSettings, DisplayKnobSettings> change)
     {

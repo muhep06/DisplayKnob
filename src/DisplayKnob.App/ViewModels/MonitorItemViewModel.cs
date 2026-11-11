@@ -20,6 +20,7 @@ internal sealed partial class MonitorItemViewModel : ObservableObject
         Details = key.Split('|')[0];
         var saved = settings.Current.ForMonitor(key);
         DdcVolumeEnabled = saved.DdcVolumeEnabled;
+        InVolumeGroup = saved.InVolumeGroup;
         MaxVolume = Math.Clamp(saved.MaxVolumePercent, MonitorSettings.MinMaxVolumePercent, 100);
         CurveIndex = (int)saved.VolumeCurve;
     }
@@ -33,6 +34,10 @@ internal sealed partial class MonitorItemViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool DdcVolumeEnabled { get; set; }
+
+    /// <summary>Part of the volume group (see <see cref="MonitorSettings.InVolumeGroup"/>).</summary>
+    [ObservableProperty]
+    public partial bool InVolumeGroup { get; set; }
 
     /// <summary>The volume limit in percent of the monitor's range (see <see cref="MonitorSettings.MaxVolumePercent"/>).</summary>
     [ObservableProperty]
@@ -63,6 +68,16 @@ internal sealed partial class MonitorItemViewModel : ObservableObject
         }
 
         Save(m => m with { DdcVolumeEnabled = value });
+    }
+
+    partial void OnInVolumeGroupChanged(bool value)
+    {
+        if (_settings.Current.ForMonitor(_key).InVolumeGroup == value)
+        {
+            return; // Initial load.
+        }
+
+        Save(m => m with { InVolumeGroup = value });
     }
 
     partial void OnMaxVolumeChanged(double value) => SaveMaxVolume(value);
