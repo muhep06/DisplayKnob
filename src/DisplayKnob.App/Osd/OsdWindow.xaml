@@ -13,14 +13,25 @@
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
 
+    <!-- A message (the volume group was turned on or off) replaces the level display. -->
+    <TextBlock
+        Grid.ColumnSpan="3"
+        VerticalAlignment="Center"
+        Style="{ThemeResource BodyTextBlockStyle}"
+        Text="{x:Bind ViewModel.Message, Mode=OneWay}"
+        TextAlignment="Center"
+        TextTrimming="CharacterEllipsis"
+        Visibility="{x:Bind ViewModel.IsMessage, Mode=OneWay}" />
+
     <FontIcon
         Grid.Column="0"
         VerticalAlignment="Center"
         FontFamily="{ThemeResource SymbolThemeFontFamily}"
         FontSize="16"
-        Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}" />
+        Glyph="{x:Bind ViewModel.Glyph, Mode=OneWay}"
+        Visibility="{x:Bind ViewModel.IsLevel, Mode=OneWay}" />
 
-    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4" Visibility="{x:Bind ViewModel.IsLevel, Mode=OneWay}">
       <TextBlock
           Style="{ThemeResource CaptionTextBlockStyle}"
           Opacity="0.75"
@@ -44,6 +55,7 @@
         VerticalAlignment="Center"
         Style="{ThemeResource BodyTextBlockStyle}"
         Text="{x:Bind ViewModel.LevelText, Mode=OneWay}"
-        TextAlignment="Right" />
+        TextAlignment="Right"
+        Visibility="{x:Bind ViewModel.IsLevel, Mode=OneWay}" />
   </Grid>
 </Window>

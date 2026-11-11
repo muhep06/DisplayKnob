@@ -137,12 +137,20 @@ internal sealed class TrayIconHost : IDisposable
     }
 
     // These events arrive on background threads.
-    private void OnVolumeChanged(object? sender, VolumeChangedEventArgs e) =>
+    private void OnVolumeChanged(object? sender, VolumeChangedEventArgs e)
+    {
+        // The other monitors of the volume group report too; the icon shows the one the audio plays through.
+        if (e.MonitorKey is not null && _mapper.Current is { } target && e.MonitorKey != target.Monitor.Identity.Key)
+        {
+            return;
+        }
+
         _dispatcher.TryEnqueue(() =>
         {
             _lastLevel = e;
             Render();
         });
+    }
 
     private void OnStatusChanged(object? sender, EventArgs e) => _dispatcher.TryEnqueue(Render);
 
