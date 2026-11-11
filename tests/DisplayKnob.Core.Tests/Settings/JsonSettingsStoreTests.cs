@@ -66,6 +66,28 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Update_CommandSpacing_PersistsAcrossInstances()
+    {
+        var store = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        store.Update(s => s with { Monitors = new Dictionary<string, MonitorSettings> { ["DEL4123-ABC|PATH"] = new() { CommandSpacingMs = 180 } } });
+        var reloaded = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        Assert.Equal(180, reloaded.Current.ForMonitor("DEL4123-ABC|PATH").CommandSpacingMs);
+    }
+
+    [Fact]
+    public void Constructor_MonitorEntryWithoutCommandSpacing_UsesTheDefault()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(SettingsPath, """{ "monitors": { "DEL4123-ABC|PATH": { "ddcVolumeEnabled": true } } }""");
+
+        var monitor = new JsonSettingsStore(SettingsPath, Logger.None).Current.ForMonitor("DEL4123-ABC|PATH");
+
+        Assert.Null(monitor.CommandSpacingMs);
+    }
+
+    [Fact]
     public void Update_VolumeCurve_PersistsAcrossInstances()
     {
         var store = new JsonSettingsStore(SettingsPath, Logger.None);

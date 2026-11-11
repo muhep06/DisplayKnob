@@ -1,4 +1,5 @@
 using DisplayKnob.Core.Ddc;
+using DisplayKnob.Core.Settings;
 using Serilog;
 
 namespace DisplayKnob.Core.Displays;
@@ -15,13 +16,22 @@ public sealed class MonitorRegistry : IAsyncDisposable
     private readonly IMonitorEnumerator _enumerator;
     private readonly TimeProvider _timeProvider;
     private readonly DdcWorkerOptions _workerOptions;
+    private readonly ISettingsStore? _settings;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private IReadOnlyList<DdcWorker> _monitors = [];
     private bool _disposed;
 
     /// <summary>Creates an empty registry; call <see cref="RefreshAsync"/> to populate it.</summary>
-    public MonitorRegistry(IMonitorEnumerator enumerator, TimeProvider timeProvider, DdcWorkerOptions workerOptions, ILogger logger)
+    /// <param name="enumerator">Finds the monitors.</param>
+    /// <param name="timeProvider">Clock for the DDC workers.</param>
+    /// <param name="workerOptions">Retry, pacing and verification policy for the DDC workers.</param>
+    /// <param name="logger">Logger.</param>
+    /// <param name="settings">
+    /// When given, the command spacing each monitor needs is read from it and written back when a worker learns
+    /// a longer one.
+    /// </param>
+    public MonitorRegistry(IMonitorEnumerator enumerator, TimeProvider timeProvider, DdcWorkerOptions workerOptions, ILogger logger, ISettingsStore? settings = null)
     {
         ArgumentNullException.ThrowIfNull(enumerator);
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -31,6 +41,7 @@ public sealed class MonitorRegistry : IAsyncDisposable
         _enumerator = enumerator;
         _timeProvider = timeProvider;
         _workerOptions = workerOptions;
+        _settings = settings;
         _logger = logger.ForContext<MonitorRegistry>();
     }
 
@@ -60,7 +71,7 @@ public sealed class MonitorRegistry : IAsyncDisposable
                 _logger.Warning("{Count} monitors share the identity {MonitorId}; per-monitor settings will collide", duplicate.Count(), duplicate.Key);
             }
 
-            Volatile.Write(ref _monitors, [.. controllers.Select(c => new DdcWorker(c, _timeProvider, _workerOptions, _logger))]);
+            Volatile.Write(ref _monitors, [.. controllers.Select(CreateWorker)]);
             _logger.Information("Found {Count} monitor(s)", controllers.Count);
         }
         finally
@@ -89,6 +100,30 @@ public sealed class MonitorRegistry : IAsyncDisposable
         {
             _refreshLock.Release();
         }
+    }
+
+    private DdcWorker CreateWorker(IMonitorController controller)
+    {
+        var key = controller.Identity.Key;
+        var settings = _settings;
+        var learned = settings?.Current.ForMonitor(key).CommandSpacingMs;
+        var worker = new DdcWorker(controller, _timeProvider, _workerOptions, _logger, learned is > 0 ? TimeSpan.FromMilliseconds(learned.Value) : null);
+
+        if (settings is not null)
+        {
+            // Raised on the worker's loop. Saving raises the settings' Changed event, whose handlers shouldn't run
+            // inside the DDC loop, so hand it to the thread pool.
+            worker.CommandSpacingChanged += (_, spacing) => ThreadPool.QueueUserWorkItem(_ =>
+                settings.Update(s => s with
+                {
+                    Monitors = new Dictionary<string, MonitorSettings>(s.Monitors)
+                    {
+                        [key] = s.ForMonitor(key) with { CommandSpacingMs = (int)Math.Round(spacing.TotalMilliseconds) },
+                    },
+                }));
+        }
+
+        return worker;
     }
 
     private async Task DisposeMonitorsAsync()

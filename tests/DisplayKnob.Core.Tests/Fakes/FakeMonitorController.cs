@@ -12,9 +12,14 @@ internal sealed class FakeMonitorController : IMonitorController
 {
     private readonly ConcurrentDictionary<byte, VcpValue> _values = new();
     private readonly ConcurrentQueue<(byte Code, uint Value)> _writes = new();
+    private readonly ConcurrentQueue<DateTimeOffset> _writeTimes = new();
+    private readonly TimeProvider _clock;
+    private DateTimeOffset _lastCallAt;
+    private DateTimeOffset? _previousCallAt;
 
-    public FakeMonitorController(string name = "Fake Monitor")
+    public FakeMonitorController(string name = "Fake Monitor", TimeProvider? clock = null)
     {
+        _clock = clock ?? TimeProvider.System;
         DisplayName = name;
         Identity = MonitorIdentity.Create(null, null, name);
     }
@@ -42,6 +47,15 @@ internal sealed class FakeMonitorController : IMonitorController
 
     public IReadOnlyList<(byte Code, uint Value)> Writes => [.. _writes];
 
+    /// <summary>
+    /// When set, a write that follows the previous command (a read or a write) by less than this is acknowledged but
+    /// not applied, as some monitors do while they are still busy.
+    /// </summary>
+    public TimeSpan? DropWritesWithin { get; set; }
+
+    /// <summary>When each write happened, by the clock the fake was created with.</summary>
+    public IReadOnlyList<DateTimeOffset> WriteTimes => [.. _writeTimes];
+
     /// <summary>Codes whose writes are acknowledged but ignored (some monitors do this).</summary>
     public HashSet<byte> IgnoredWriteCodes { get; } = [];
 
@@ -66,7 +80,9 @@ internal sealed class FakeMonitorController : IMonitorController
         }
 
         _writes.Enqueue((code, value));
-        if (IgnoredWriteCodes.Contains(code))
+        _writeTimes.Enqueue(_lastCallAt);
+        var tooSoon = DropWritesWithin is { } gap && _previousCallAt is { } previous && _lastCallAt - previous < gap;
+        if (IgnoredWriteCodes.Contains(code) || tooSoon)
         {
             return true;
         }
@@ -90,6 +106,8 @@ internal sealed class FakeMonitorController : IMonitorController
 
     private bool BeginCall()
     {
+        _previousCallAt = _lastCallAt == default ? null : _lastCallAt;
+        _lastCallAt = _clock.GetUtcNow();
         CallStarted.Set();
         Gate?.Wait(TimeSpan.FromSeconds(10));
         CallCount++;
