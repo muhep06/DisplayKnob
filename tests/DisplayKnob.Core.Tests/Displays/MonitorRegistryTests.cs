@@ -96,9 +96,14 @@ public sealed class MonitorRegistryTests
         await registry.RefreshAsync(Ct);
         var worker = registry.Monitors[0];
 
+        // The first write is held inside the monitor while the second is queued behind it, so only the worker's own
+        // timers move the clock between them (see DdcWorkerTests.WriteDroppedByTheMonitor_IsSentAgainAndTheSpacingGrows).
+        using var gate = new ManualResetEventSlim(false);
+        monitor.Gate = gate;
         worker.WriteVcp(VcpCodes.Brightness, 10);
-        await time.RunUntilAsync(() => monitor.Writes.Count == 1);
+        Assert.True(monitor.CallStarted.Wait(TimeSpan.FromSeconds(10), Ct));
         worker.WriteVcp(VcpCodes.Brightness, 20); // Follows too closely and is dropped.
+        gate.Set();
         await time.RunUntilAsync(() => settings.Current.ForMonitor(monitor.Identity.Key).CommandSpacingMs is not null);
 
         Assert.Equal((int)worker.CommandSpacing.TotalMilliseconds, settings.Current.ForMonitor(monitor.Identity.Key).CommandSpacingMs);
