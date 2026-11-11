@@ -31,7 +31,7 @@ public sealed class MonitorLevelServiceTests : IAsyncDisposable
         _settings.Update(s => s with { VolumePollSeconds = 0 });
         _registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [_target, _other]), TimeProvider.System, new DdcWorkerOptions(1, TimeSpan.Zero), Logger.None);
         _mapper = new AudioMonitorMapper(_watcher, _registry, _settings, Logger.None);
-        _controller = new VolumeController(_mapper, _settings, new FakeTimeProvider(), Logger.None);
+        _controller = new VolumeController(_mapper, _registry, _settings, new FakeTimeProvider(), Logger.None);
         _service = new MonitorLevelService(_controller, _mapper, _settings);
     }
 

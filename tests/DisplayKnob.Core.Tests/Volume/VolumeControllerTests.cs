@@ -29,7 +29,7 @@ public sealed class VolumeControllerTests : IAsyncDisposable
         _settings.Update(s => s with { VolumePollSeconds = 0 }); // Tests drive refreshes explicitly.
         _registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [_monitor]), TimeProvider.System, new DdcWorkerOptions(1, TimeSpan.Zero), Logger.None);
         _mapper = new AudioMonitorMapper(_watcher, _registry, _settings, Logger.None);
-        _controller = new VolumeController(_mapper, _settings, _time, Logger.None);
+        _controller = new VolumeController(_mapper, _registry, _settings, _time, Logger.None);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -275,7 +275,7 @@ public sealed class VolumeControllerTests : IAsyncDisposable
         monitor.SetValue(VcpCodes.AudioVolume, 30, 100); // No 0x8D at all.
         await using var registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [monitor]), TimeProvider.System, new DdcWorkerOptions(1, TimeSpan.Zero), Logger.None);
         using var mapper = new AudioMonitorMapper(_watcher, registry, _settings, Logger.None);
-        await using var controller = new VolumeController(mapper, _settings, _time, Logger.None);
+        await using var controller = new VolumeController(mapper, registry, _settings, _time, Logger.None);
         await registry.RefreshAsync(Ct);
         await AfterRefreshAsync(controller, () => _watcher.SetDefault(s_monitorAudio));
 
