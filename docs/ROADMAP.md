@@ -62,7 +62,7 @@
 - [x] Custom hotkeys (Ctrl+Alt+↑/↓/M, Ctrl+Alt+Win, or recorded) for keyboards without media keys
 - [x] Volume curve (linear / logarithmic feel)
 - [x] Volume cap (max level) per monitor
-- "All monitors" mode: step every DDC-volume monitor together
+- [x] Volume group: choose the monitors that step together (all to the same level), with a shortcut (Ctrl+Alt+G) to turn it on and off and a choice of one OSD or one per monitor
 - Mirror the Windows volume UI to DDC: implemented behind `mirrorWindowsVolume` (off by default; the Windows UI then shows the 98% rest level). Needs a settings toggle (M6)
 
 ## v0.3+
