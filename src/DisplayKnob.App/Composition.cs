@@ -22,6 +22,7 @@ internal static class Composition
         services.AddSingleton(logger);
         services.AddDisplayKnobCore();
         OverrideDdcSpacingIfRequested(services);
+        AddFakeMonitorsIfRequested(services);
         services.AddSingleton<UpdateService>();
         services.AddSingleton<TrayIconHost>();
         services.AddSingleton<StartupOffer>();
@@ -41,6 +42,19 @@ internal static class Composition
             ValidateOnBuild = true,
             ValidateScopes = true,
         });
+    }
+
+    // Debug builds only: DISPLAYKNOB_FAKE_MONITORS=<n> (1–4) adds n simulated DDC monitors next to the real ones, so the
+    // volume group can be tried on a machine with one monitor.
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void AddFakeMonitorsIfRequested(IServiceCollection services)
+    {
+#if DEBUG
+        if (int.TryParse(Environment.GetEnvironmentVariable("DISPLAYKNOB_FAKE_MONITORS"), System.Globalization.CultureInfo.InvariantCulture, out var count) && count > 0)
+        {
+            Diagnostics.FakeMonitors.Register(services, Math.Min(count, 4));
+        }
+#endif
     }
 
     // Debug builds only: DISPLAYKNOB_DDC_SPACING_MS=<ms> starts every monitor with that pause between DDC commands,
