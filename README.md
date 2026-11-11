@@ -43,8 +43,9 @@ Volume is where DisplayKnob starts, and it is built to be the best at it. The sa
 |---|---|
 | **Hardware volume keys**<br>The media keys drive the monitor's volume over DDC/CI, so a KVM-shared monitor stays in sync with the Mac. | **Mute that sticks**<br>Uses the monitor's own mute, or falls back to volume 0 when it has none. |
 | **Follows your audio output**<br>Controls whichever monitor is playing sound. With headphones selected, the keys behave normally. | **Volume and brightness, one click away**<br>Sliders for every monitor in a tray flyout. The knob in the tray shows the volume. |
-| **Limit and curve, per monitor**<br>Cap the maximum volume and choose a linear or logarithmic curve for finer steps at the quiet end. | **Shortcuts for any keyboard**<br>Ctrl+Alt+Up, Down and M by default, or record your own. Works without media keys. |
+| **Limit and curve, per monitor**<br>Cap the maximum volume and choose a linear or logarithmic curve for finer steps at the quiet end. | **Shortcuts for any keyboard**<br>Ctrl+Alt+Up, Down, M and G by default, or record your own. Works without media keys. |
 | **Survives KVM switches**<br>Re-reads the monitor after hotplug, a KVM switch or sleep, and picks up changes made from the other machine. | **No drivers, no admin**<br>A tray app that runs as you. Installs per user and updates itself from GitHub Releases. |
+| **Volume group**<br>Pick the monitors that change together. The keys set them all to the same level, and Ctrl+Alt+G turns the group on or off. | |
 
 An on-screen indicator shows the level when you press a key, and it never steals focus.
 
@@ -87,7 +88,7 @@ More tips, KVM issues, Windows SmartScreen and how to report a bug: **[docs/TROU
 | Version | Status | What |
 |---|---|---|
 | **v0.1** | Ready | Volume keys over DDC/CI, on-screen indicator, tray flyout, settings, hotplug and KVM handling, installer and updates. |
-| **v0.2** | In progress | Custom shortcuts, volume curve and per-monitor limit are done. An "all monitors" mode is next. |
+| **v0.2** | In progress | Custom shortcuts, volume curve and per-monitor limit are done. The volume group (several monitors changing together) is in. |
 | **v0.3+** | Planned | The display hub: input switching, brightness hotkeys, resolution and HDR presets, profiles, virtual displays, picture-in-picture, a signed build. |
 
 The full list is in **[docs/ROADMAP.md](docs/ROADMAP.md)**.

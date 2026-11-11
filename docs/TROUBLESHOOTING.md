@@ -7,6 +7,14 @@
 3. **Check the monitor's switch in Settings.** Under *Monitors*, "Control volume" must be on for that monitor, and *Audio outputs* shows which monitor each output plays through.
 4. **Run "Probe monitors"** from the tray menu, then open the log folder. The log lists each monitor with its capabilities and its current brightness, volume and mute values. If a monitor isn't listed, it doesn't answer DDC/CI.
 
+## The volume group doesn't move all my monitors
+
+- Turn on *Volume group* in Settings, and turn on *In volume group* for each monitor under *Monitors* (it needs *Control volume* on too).
+- The group only follows while the audio plays through one of its monitors. With headphones selected, the keys change the Windows volume as usual.
+- A monitor that doesn't answer DDC is skipped (the log says so once) while the others keep working.
+- All monitors go to the **same level on their own 0–100 scale**. If one sounds louder at the same level, lower its *Maximum volume* or try the *Volume curve* in its settings.
+- Ctrl+Alt+G (or your own shortcut) only works while at least two monitors are in the group; otherwise the key goes to the focused application.
+
 ## The tray icon is orange with an exclamation mark
 
 The monitor stopped answering DDC. The volume keys control Windows until it answers again, and DisplayKnob checks again on its own and on the next key press. If it keeps happening, try another cable or port, and avoid dock or adapter chains in between.
