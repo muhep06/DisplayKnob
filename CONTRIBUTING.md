@@ -15,6 +15,8 @@ Run the app from `src/DisplayKnob.App` (or start `DisplayKnob.exe` from its `bin
 
 Real DDC/CI behavior can only be verified on real monitors. If your change touches DDC, describe the monitors you tested with in the PR.
 
+To try features that need several monitors (the volume group) on a machine with one, run a Debug build with `DISPLAYKNOB_FAKE_MONITORS=2`. It adds simulated DDC monitors next to the real ones; they keep their values in memory and change nothing on the hardware. Map an audio output to one of them under *Audio outputs* to make it the volume target.
+
 ## Branches
 
 `main` is always releasable and is only changed through pull requests. There is no `develop` branch.
