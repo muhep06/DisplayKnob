@@ -9,7 +9,7 @@ internal sealed partial class HotkeySettingsViewModel : ObservableObject, IDispo
 {
     // Same order as HotkeyPreset, so the combo box index is the enum value.
     public static IReadOnlyList<string> PresetNames { get; } =
-        ["Ctrl + Alt + ↑ / ↓ / M", "Ctrl + Alt + Win + ↑ / ↓ / M", "Custom"];
+        ["Ctrl + Alt + ↑ / ↓ / M / G", "Ctrl + Alt + Win + ↑ / ↓ / M / G", "Custom"];
 
     private readonly ISettingsStore _settings;
     private readonly IHotkeyRecorder _recorder;
@@ -27,6 +27,7 @@ internal sealed partial class HotkeySettingsViewModel : ObservableObject, IDispo
             new HotkeyItemViewModel("Volume up", HotkeySlot.Up, RecordAsync, Clear),
             new HotkeyItemViewModel("Volume down", HotkeySlot.Down, RecordAsync, Clear),
             new HotkeyItemViewModel("Mute", HotkeySlot.Mute, RecordAsync, Clear),
+            new HotkeyItemViewModel("Turn volume group on or off", HotkeySlot.ToggleGroup, RecordAsync, Clear),
         ];
     }
 
@@ -68,6 +69,7 @@ internal sealed partial class HotkeySettingsViewModel : ObservableObject, IDispo
             CustomItems[(int)HotkeySlot.Up].Value = hotkeys.CustomUp;
             CustomItems[(int)HotkeySlot.Down].Value = hotkeys.CustomDown;
             CustomItems[(int)HotkeySlot.Mute].Value = hotkeys.CustomMute;
+            CustomItems[(int)HotkeySlot.ToggleGroup].Value = hotkeys.CustomToggleGroup;
         }
         finally
         {
@@ -141,7 +143,8 @@ internal sealed partial class HotkeySettingsViewModel : ObservableObject, IDispo
         {
             HotkeySlot.Up => h with { CustomUp = hotkey },
             HotkeySlot.Down => h with { CustomDown = hotkey },
-            _ => h with { CustomMute = hotkey },
+            HotkeySlot.Mute => h with { CustomMute = hotkey },
+            _ => h with { CustomToggleGroup = hotkey },
         });
     }
 
@@ -152,7 +155,8 @@ internal sealed partial class HotkeySettingsViewModel : ObservableObject, IDispo
         {
             HotkeySlot.Up => h with { CustomUp = null },
             HotkeySlot.Down => h with { CustomDown = null },
-            _ => h with { CustomMute = null },
+            HotkeySlot.Mute => h with { CustomMute = null },
+            _ => h with { CustomToggleGroup = null },
         });
     }
 
@@ -171,7 +175,7 @@ internal sealed partial class HotkeySettingsViewModel : ObservableObject, IDispo
     private void RefreshConflicts()
     {
         var taken = _settings.Current.Hotkeys.Resolve() is { } bindings
-            ? new[] { bindings.Up, bindings.Down, bindings.Mute }.OfType<Hotkey>().Where(_conflicts.IsTakenByAnotherApp).Select(h => h.ToString()).ToList()
+            ? new[] { bindings.Up, bindings.Down, bindings.Mute, bindings.ToggleGroup }.OfType<Hotkey>().Where(_conflicts.IsTakenByAnotherApp).Select(h => h.ToString()).ToList()
             : [];
 
         ConflictText = taken.Count == 0

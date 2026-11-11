@@ -141,6 +141,35 @@
             <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent="" IsOn="{x:Bind ViewModel.MirrorWindowsVolume, Mode=TwoWay}" />
           </Grid>
         </Border>
+        <Border Style="{StaticResource CardStyle}">
+          <Grid ColumnSpacing="16" RowSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Volume group" />
+              <TextBlock Style="{StaticResource DescriptionStyle}" Text="The volume keys change every monitor marked &quot;In volume group&quot; (see Monitors below) together, all to the same level, while the audio plays through one of them. The shortcut Ctrl + Alt + G turns it on and off." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" MinWidth="0" OnContent="" OffContent="" IsOn="{x:Bind ViewModel.VolumeGroupEnabled, Mode=TwoWay}" />
+            <StackPanel Grid.Row="1" VerticalAlignment="Center">
+              <TextBlock Text="Volume indicator" />
+              <TextBlock Style="{StaticResource DescriptionStyle}" Text="Where the on-screen indicator appears while the group is on." />
+            </StackPanel>
+            <ComboBox
+                Grid.Row="1"
+                Grid.Column="1"
+                MinWidth="260"
+                VerticalAlignment="Center"
+                IsEnabled="{x:Bind ViewModel.VolumeGroupEnabled, Mode=OneWay}"
+                ItemsSource="{x:Bind ViewModel.GroupOsdNames}"
+                SelectedIndex="{x:Bind ViewModel.GroupOsdIndex, Mode=TwoWay}" />
+          </Grid>
+        </Border>
 
         <!-- Keyboard shortcuts -->
         <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="Keyboard shortcuts" />
@@ -165,7 +194,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Shortcuts" />
-              <TextBlock Style="{StaticResource DescriptionStyle}" Text="Up and Down change the volume, M mutes. Use the left Alt key: the right one is AltGr on many keyboards." />
+              <TextBlock Style="{StaticResource DescriptionStyle}" Text="Up and Down change the volume, M mutes, G turns the volume group on or off. Use the left Alt key: the right one is AltGr on many keyboards." />
             </StackPanel>
             <ComboBox
                 Grid.Column="1"
@@ -247,6 +276,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
                   <FontIcon VerticalAlignment="Center" FontSize="20" Glyph="&#xE7F4;" />
                   <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -295,6 +325,19 @@
                       IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
                       ItemsSource="{x:Bind CurveNames}"
                       SelectedIndex="{x:Bind CurveIndex, Mode=TwoWay}" />
+                  <StackPanel Grid.Row="3" Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="In volume group" />
+                    <TextBlock Style="{StaticResource DescriptionStyle}" Text="With the volume group turned on, this monitor changes together with the others in the group." />
+                  </StackPanel>
+                  <ToggleSwitch
+                      Grid.Row="3"
+                      Grid.Column="2"
+                      MinWidth="0"
+                      HorizontalAlignment="Right"
+                      OnContent=""
+                      OffContent=""
+                      IsEnabled="{x:Bind DdcVolumeEnabled, Mode=OneWay}"
+                      IsOn="{x:Bind InVolumeGroup, Mode=TwoWay}" />
                 </Grid>
               </Border>
             </DataTemplate>
