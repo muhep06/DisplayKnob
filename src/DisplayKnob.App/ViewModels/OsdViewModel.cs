@@ -27,6 +27,15 @@ internal sealed partial class OsdViewModel : ObservableObject
     [ObservableProperty]
     public partial string MonitorName { get; set; } = string.Empty;
 
+    /// <summary>A short message shown instead of the level, e.g. "Volume group on". Empty while showing a level.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMessage), nameof(IsLevel))]
+    public partial string Message { get; set; } = string.Empty;
+
+    public bool IsMessage => Message.Length > 0;
+
+    public bool IsLevel => Message.Length == 0;
+
     /// <summary>Only worth the space when more than one monitor could be the target.</summary>
     [ObservableProperty]
     public partial bool ShowMonitorName { get; set; }
