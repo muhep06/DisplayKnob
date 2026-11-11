@@ -43,6 +43,15 @@ public sealed record DisplayKnobSettings
     /// </summary>
     public int VolumePollSeconds { get; set; } = 10;
 
+    /// <summary>
+    /// While audio plays through a monitor marked <see cref="MonitorSettings.InVolumeGroup"/>, the volume keys change
+    /// every monitor of the group together, all to the same level on their own 0–100 scales.
+    /// </summary>
+    public bool VolumeGroupEnabled { get; set; }
+
+    /// <summary>Where the on-screen indicator appears while the volume group is active.</summary>
+    public GroupOsdMode VolumeGroupOsd { get; set; } = GroupOsdMode.EachMonitor;
+
     /// <summary>Show the on-screen volume indicator when the volume changes.</summary>
     public bool ShowOsd { get; set; } = true;
 
