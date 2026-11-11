@@ -59,14 +59,33 @@
 - [ ] winget manifest (later)
 
 ## v0.2 — Volume polish
+Ships together with v0.3; it is not released on its own.
+
 - [x] Custom hotkeys (Ctrl+Alt+↑/↓/M, Ctrl+Alt+Win, or recorded) for keyboards without media keys
 - [x] Volume curve (linear / logarithmic feel)
 - [x] Volume cap (max level) per monitor
 - [x] Volume group: choose the monitors that step together (all to the same level), with a shortcut (Ctrl+Alt+G) to turn it on and off and a choice of one OSD or one per monitor
 - Mirror the Windows volume UI to DDC: implemented behind `mirrorWindowsVolume` (off by default; the Windows UI then shows the 98% rest level). Needs a settings toggle (M6)
 
-## v0.3+
-- Brightness/contrast hotkeys, input source switching (VCP 0x60), per-monitor profiles
+## v0.3 — Monitor groups
+Replaces the single volume group with any number of named groups. A group is a set of monitors plus the features its members share. A monitor can be in several groups and several groups can be active at once, but for each monitor and feature at most one enabled group applies, so groups never fight over a value (the first listed wins; the settings window disables the conflicting checkbox and says why).
+
+### M8. Groups, volume and mute
+- [ ] Settings model: `MonitorGroup` (name, enabled, members, linked features), `LinkedFeature` flags (volume, mute, brightness, contrast, input source), conflict resolver
+- [ ] Migrate the old single volume group (`VolumeGroupEnabled`, `InVolumeGroup`) to "Group 1"
+- [ ] `VolumeController` follows the groups: keys move the target's peers for volume and mute
+- [ ] Settings window: add, remove and rename groups, pick members and shared features
+- [ ] OSD shows the group name; per-group on/off in the settings and the tray flyout (decide what Ctrl+Alt+G does with several groups)
+
+### M9. Brightness and contrast
+- [ ] Brightness and contrast hotkeys (e.g. Ctrl+Alt+PgUp/PgDn for brightness)
+- [ ] Tray sliders and hotkeys move the group's peers on their own scales
+
+### M10. Input source
+- [ ] Input source switching (VCP 0x60). Source numbers differ per monitor (HDMI 1 on one, DP on another), so sharing it needs a per-monitor mapping; decide before building
+
+## Later
+- Per-monitor profiles
 - Resolution / refresh / HDR presets (QueryDisplayConfig / SetDisplayConfig, advanced color)
 - Virtual displays: manage the VirtualDrivers VDD (MIT, signed)
 - PiP / screen mirror window (Windows.Graphics.Capture)
