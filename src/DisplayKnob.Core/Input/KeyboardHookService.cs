@@ -29,7 +29,7 @@ internal sealed class KeyboardHookService : IDisposable, IHotkeyRecorder
     private readonly ILogger _logger;
     private readonly HOOKPROC _hookProc; // Kept in a field so the GC can't collect the delegate while Windows holds it.
     private readonly bool[] _swallowedDown = new bool[3]; // Indexed by VolumeKey; only touched on the hook thread.
-    private readonly ushort[] _hotkeyDownKey = new ushort[3]; // Indexed by VolumeKey: the virtual key whose shortcut press was swallowed, 0 = none.
+    private readonly ushort[] _hotkeyDownKey = new ushort[4]; // Indexed by VolumeKey (including ToggleGroup): the virtual key whose shortcut press was swallowed, 0 = none.
     private HotkeyBindings? _bindings; // Replaced from other threads, read with Volatile.
     private bool _modifierMasked; // Hook thread only: a mask tap was already sent for the Alt/Win currently held.
     private TaskCompletionSource<Hotkey?>? _recording; // Set while the settings UI waits for a shortcut; read with Volatile.
@@ -307,6 +307,11 @@ internal sealed class KeyboardHookService : IDisposable, IHotkeyRecorder
             return false;
         }
 
+        if (key == VolumeKey.ToggleGroup)
+        {
+            return HandleToggleGroup(vk, held, handler);
+        }
+
         _hotkeyDownKey[(int)key] = vk;
         if (!handler(new VolumeKeyPress(key, fine)))
         {
@@ -314,6 +319,26 @@ internal sealed class KeyboardHookService : IDisposable, IHotkeyRecorder
             PInvoke.PostThreadMessage(_threadId, InjectVolumeKeyMessage, (WPARAM)(nuint)key, default);
         }
 
+        MaskModifiersIfNeeded(held);
+        return true;
+    }
+
+    // The group toggle is no volume key: when it is declined (fewer than two monitors in the group) nothing is
+    // injected and the key reaches the focused application, like any shortcut we don't use.
+    private bool HandleToggleGroup(ushort vk, HotkeyModifiers held, Func<VolumeKeyPress, bool> handler)
+    {
+        // Auto-repeat of a held shortcut is swallowed without toggling again.
+        if (_hotkeyDownKey[(int)VolumeKey.ToggleGroup] == vk)
+        {
+            return true;
+        }
+
+        if (!handler(new VolumeKeyPress(VolumeKey.ToggleGroup, Fine: false)))
+        {
+            return false;
+        }
+
+        _hotkeyDownKey[(int)VolumeKey.ToggleGroup] = vk;
         MaskModifiersIfNeeded(held);
         return true;
     }

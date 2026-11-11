@@ -68,6 +68,7 @@ internal sealed class HookVolumeSource : IVolumeSource
     {
         VolumeKey.Up => VolumeAction.Up,
         VolumeKey.Down => VolumeAction.Down,
+        VolumeKey.ToggleGroup => VolumeAction.ToggleGroup,
         _ => VolumeAction.ToggleMute,
     };
 }
