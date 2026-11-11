@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using DisplayKnob.Core.Audio;
 using DisplayKnob.Core.Ddc;
+using DisplayKnob.Core.Displays;
 using DisplayKnob.Core.Settings;
 using Serilog;
 
@@ -40,6 +41,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     private const uint MuteOffAlternative = 0;
 
     private readonly AudioMonitorMapper _mapper;
+    private readonly MonitorRegistry _registry;
     private readonly ISettingsStore _settings;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger _logger;
@@ -54,18 +56,22 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     private DdcWorker? _unresponsive; // The monitor that stopped answering; written under _healthLock.
     private TimeSpan _probeDelay;
     private long _lastKeyProbe;
-    private MonitorState? _state; // Only touched by the processing loop.
+    private readonly Dictionary<string, MonitorState> _states = []; // By monitor identity key. Only touched by the processing loop.
+    private readonly HashSet<string> _unresponsiveMembers = []; // Group members that didn't answer; only touched by the loop.
+    private int _groupMemberCount; // Monitors set up as group members; written under settings/registry events, read by the hook.
     private DdcWorker? _watchedWorker; // Only touched by the processing loop.
 
     /// <summary>Creates the controller and starts its processing loop.</summary>
-    public VolumeController(AudioMonitorMapper mapper, ISettingsStore settings, TimeProvider timeProvider, ILogger logger)
+    public VolumeController(AudioMonitorMapper mapper, MonitorRegistry registry, ISettingsStore settings, TimeProvider timeProvider, ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(mapper);
+        ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
         _mapper = mapper;
+        _registry = registry;
         _settings = settings;
         _timeProvider = timeProvider;
         _logger = logger.ForContext<VolumeController>();
@@ -73,8 +79,10 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         _probeTimer = _timeProvider.CreateTimer(_ => PostRefresh(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _pollTimer = _timeProvider.CreateTimer(_ => OnPoll(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         UpdatePollTimer();
+        UpdateGroupMemberCount();
         _loop = Task.Run(() => RunAsync(_stop.Token));
         _mapper.TargetChanged += OnTargetChanged;
+        _registry.MonitorsChanged += OnMonitorsChanged;
         _settings.Changed += OnSettingsChanged;
     }
 
@@ -93,6 +101,9 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     /// <summary>Raised when <see cref="IsTargetResponding"/> may have changed. Raised on a background thread.</summary>
     public event EventHandler? TargetRespondingChanged;
 
+    /// <summary>Raised after the group shortcut turned the volume group on or off. Raised on a background thread.</summary>
+    public event EventHandler<VolumeGroupToggledEventArgs>? VolumeGroupToggled;
+
     /// <summary>Raised after the loop finished a command (tests use it to wait for background work).</summary>
     internal event EventHandler<VolumeCommand>? CommandProcessed;
 
@@ -105,6 +116,12 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     public bool TryPost(VolumeCommand command)
     {
         // Called from the keyboard hook: volatile reads and a lock-free enqueue, nothing else.
+        if (command.Action == VolumeAction.ToggleGroup)
+        {
+            // Works whatever the audio output is, but only when there is a group to turn on or off.
+            return Volatile.Read(ref _groupMemberCount) >= 2 && !_stop.IsCancellationRequested && _commands.Writer.TryWrite(command);
+        }
+
         if (_mapper.Current is not { } target || _stop.IsCancellationRequested)
         {
             return false;
@@ -136,6 +153,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
 
         _mapper.TargetChanged -= OnTargetChanged;
+        _registry.MonitorsChanged -= OnMonitorsChanged;
         _settings.Changed -= OnSettingsChanged;
         await _probeTimer.DisposeAsync().ConfigureAwait(false);
         await _pollTimer.DisposeAsync().ConfigureAwait(false);
@@ -153,6 +171,12 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     /// <summary>Applies one command. Exposed for tests; the loop calls it sequentially.</summary>
     internal async Task ProcessAsync(VolumeCommand command, CancellationToken cancellationToken)
     {
+        if (command.Action == VolumeAction.ToggleGroup)
+        {
+            ToggleGroup();
+            return;
+        }
+
         var target = _mapper.Current;
         if (target is null)
         {
@@ -160,8 +184,13 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
 
         var refresh = command.Action == VolumeAction.Refresh;
-        var previous = _state;
-        var state = await SyncAsync(target.Monitor, force: refresh, cancellationToken).ConfigureAwait(false);
+        if (refresh)
+        {
+            PruneStates();
+        }
+
+        var previous = _states.GetValueOrDefault(target.Monitor.Identity.Key);
+        var state = await SyncAsync(target.Monitor, force: refresh, isTarget: true, cancellationToken).ConfigureAwait(false);
         if (state is null)
         {
             return;
@@ -172,7 +201,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
             // Polling re-reads every few seconds; only report what actually changed.
             if (!SameReading(previous, state))
             {
-                VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: false, state.Monitor.Identity.Key));
+                RaiseVolumeChanged(state, userInitiated: false);
             }
 
             return;
@@ -180,9 +209,18 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
 
         Interlocked.Exchange(ref _lastActivity, _timeProvider.GetTimestamp());
 
+        // Keys and mute move the whole volume group; a slider (Set) only ever moves its own monitor.
+        var members = command.Action == VolumeAction.Set
+            ? []
+            : await SyncMembersAsync(target, cancellationToken).ConfigureAwait(false);
+
         if (command.Action == VolumeAction.ToggleMute)
         {
             await SetMutedAsync(state, !state.Muted, cancellationToken).ConfigureAwait(false);
+            foreach (var member in members)
+            {
+                await SetMutedAsync(member, state.Muted, cancellationToken).ConfigureAwait(false);
+            }
         }
         else
         {
@@ -192,45 +230,132 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
                 await SetMutedAsync(state, false, cancellationToken).ConfigureAwait(false);
             }
 
-            var step = command.Fine ? 1 : Math.Clamp(_settings.Current.VolumeStep, 1, 100);
-            var level = command.Action switch
-            {
-                VolumeAction.Set => Math.Clamp(command.Level, 0, 100),
-                VolumeAction.Up => Math.Clamp(state.Level + step, 0, 100),
-                _ => Math.Clamp(state.Level - step, 0, 100),
-            };
-            var mapping = GetMapping(state);
-            var raw = mapping.ToRaw(level);
+            ApplyStep(state, command);
 
-            // Every press moves the monitor by at least one raw step. Where the curve is flat (a few raw values
-            // spread over many percent, e.g. the bottom of a logarithmic curve or a narrow limited range) a
-            // plain step would round to the same raw value and the key would seem dead.
-            if (command.Action == VolumeAction.Up && raw <= state.Raw && state.Raw < mapping.Max)
+            // The group moves to the level the target ended at, each monitor on its own scale. A member that was
+            // lower or higher catches up, and when the target sits at 0 or 100 the others still get there.
+            foreach (var member in members)
             {
-                raw = state.Raw + 1;
-                level = mapping.ToPercent(raw);
-            }
-            else if (command.Action == VolumeAction.Down && raw >= state.Raw && state.Raw > mapping.Min)
-            {
-                raw = state.Raw - 1;
-                level = mapping.ToPercent(raw);
-            }
+                if (member.Muted)
+                {
+                    await SetMutedAsync(member, false, cancellationToken).ConfigureAwait(false);
+                }
 
-            // Also write when the monitor sits above the volume limit (set from its own buttons, or from another
-            // machine): at level 100 the level doesn't change, but the sound is louder than the limit allows.
-            if (level != state.Level || raw != state.Raw)
-            {
-                state.Level = level;
-                state.Raw = raw;
-                state.Monitor.WriteVcp(VcpCodes.AudioVolume, raw);
+                ApplyLevel(member, state.Level);
             }
         }
 
-        state.LastUsed = _timeProvider.GetUtcNow();
+        var now = _timeProvider.GetUtcNow();
+        state.LastUsed = now;
         _logger.Debug("{Monitor}: volume {Level}%{Muted}", state.Monitor.DisplayName, state.Level, state.Muted ? " (muted)" : string.Empty);
 
         // A slider already shows the level it sets; the OSD would only cover the screen while dragging.
-        VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated: command.Action != VolumeAction.Set, state.Monitor.Identity.Key));
+        var userInitiated = command.Action != VolumeAction.Set;
+        RaiseVolumeChanged(state, userInitiated);
+        foreach (var member in members)
+        {
+            member.LastUsed = now;
+            _logger.Debug("{Monitor}: volume {Level}%{Muted} (group)", member.Monitor.DisplayName, member.Level, member.Muted ? " (muted)" : string.Empty);
+            RaiseVolumeChanged(member, userInitiated);
+        }
+    }
+
+    private void RaiseVolumeChanged(MonitorState state, bool userInitiated) =>
+        VolumeChanged?.Invoke(this, new VolumeChangedEventArgs(state.Monitor.DisplayName, state.Monitor.GdiDeviceName, state.Level, state.Muted, userInitiated, state.Monitor.Identity.Key));
+
+    // Moves the target by one step (or to a slider's level).
+    private void ApplyStep(MonitorState state, VolumeCommand command)
+    {
+        var step = command.Fine ? 1 : Math.Clamp(_settings.Current.VolumeStep, 1, 100);
+        var level = command.Action switch
+        {
+            VolumeAction.Set => Math.Clamp(command.Level, 0, 100),
+            VolumeAction.Up => Math.Clamp(state.Level + step, 0, 100),
+            _ => Math.Clamp(state.Level - step, 0, 100),
+        };
+        var mapping = GetMapping(state);
+        var raw = mapping.ToRaw(level);
+
+        // Every press moves the monitor by at least one raw step. Where the curve is flat (a few raw values
+        // spread over many percent, e.g. the bottom of a logarithmic curve or a narrow limited range) a
+        // plain step would round to the same raw value and the key would seem dead.
+        if (command.Action == VolumeAction.Up && raw <= state.Raw && state.Raw < mapping.Max)
+        {
+            raw = state.Raw + 1;
+            level = mapping.ToPercent(raw);
+        }
+        else if (command.Action == VolumeAction.Down && raw >= state.Raw && state.Raw > mapping.Min)
+        {
+            raw = state.Raw - 1;
+            level = mapping.ToPercent(raw);
+        }
+
+        WriteLevel(state, level, raw);
+    }
+
+    // Sets a group member to the level the target reached.
+    private void ApplyLevel(MonitorState state, int level) => WriteLevel(state, level, GetMapping(state).ToRaw(level));
+
+    // Also writes when the monitor sits above the volume limit (set from its own buttons, or from another
+    // machine): at level 100 the level doesn't change, but the sound is louder than the limit allows.
+    private static void WriteLevel(MonitorState state, int level, uint raw)
+    {
+        if (level != state.Level || raw != state.Raw)
+        {
+            state.Level = level;
+            state.Raw = raw;
+            state.Monitor.WriteVcp(VcpCodes.AudioVolume, raw);
+        }
+    }
+
+    // The other monitors of the volume group, read and ready to be set. Empty unless the group is on and the
+    // target is one of its members.
+    private async Task<List<MonitorState>> SyncMembersAsync(VolumeTarget target, CancellationToken cancellationToken)
+    {
+        var members = new List<MonitorState>();
+        var settings = _settings.Current;
+        var targetKey = target.Monitor.Identity.Key;
+        if (!settings.VolumeGroupEnabled || !IsGroupMember(settings, targetKey))
+        {
+            return members;
+        }
+
+        foreach (var monitor in _registry.Monitors)
+        {
+            var key = monitor.Identity.Key;
+            if (key != targetKey && IsGroupMember(settings, key)
+                && await SyncAsync(monitor, force: false, isTarget: false, cancellationToken).ConfigureAwait(false) is { } member)
+            {
+                members.Add(member);
+            }
+        }
+
+        return members;
+    }
+
+    private static bool IsGroupMember(DisplayKnobSettings settings, string monitorKey) =>
+        settings.ForMonitor(monitorKey) is { InVolumeGroup: true, DdcVolumeEnabled: true };
+
+    private void ToggleGroup()
+    {
+        _settings.Update(s => s with { VolumeGroupEnabled = !s.VolumeGroupEnabled });
+        var enabled = _settings.Current.VolumeGroupEnabled;
+        var members = Volatile.Read(ref _groupMemberCount);
+        _logger.Information("Volume group {State} ({Count} monitors)", enabled ? "on" : "off", members);
+        VolumeGroupToggled?.Invoke(this, new VolumeGroupToggledEventArgs(enabled, members, _mapper.Current?.Monitor.GdiDeviceName));
+    }
+
+    // Forgets monitors that are gone (their workers are disposed).
+    private void PruneStates()
+    {
+        foreach (var key in _states.Keys.ToArray())
+        {
+            if (!_registry.Monitors.Any(m => m.Identity.Key == key))
+            {
+                _states.Remove(key);
+                _unresponsiveMembers.Remove(key);
+            }
+        }
     }
 
     private async Task RunAsync(CancellationToken stopToken)
@@ -258,11 +383,17 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         }
     }
 
-    private async Task<MonitorState?> SyncAsync(DdcWorker monitor, bool force, CancellationToken cancellationToken)
+    // The target drives the health logic (pass-through while it doesn't answer); a group member that doesn't answer
+    // is only skipped, so the others keep working.
+    private async Task<MonitorState?> SyncAsync(DdcWorker monitor, bool force, bool isTarget, CancellationToken cancellationToken)
     {
-        WatchWrites(monitor);
+        if (isTarget)
+        {
+            WatchWrites(monitor);
+        }
 
-        var previous = _state;
+        var key = monitor.Identity.Key;
+        var previous = _states.GetValueOrDefault(key);
         if (!force && previous is not null && ReferenceEquals(previous.Monitor, monitor) && _timeProvider.GetUtcNow() - previous.LastUsed < ResyncAfterIdle)
         {
             return previous;
@@ -271,16 +402,31 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
         var volume = await monitor.ReadVcpAsync(VcpCodes.AudioVolume, cancellationToken).ConfigureAwait(false);
         if (volume is not { Maximum: > 0 } v)
         {
-            MarkUnresponsive(monitor);
+            if (isTarget)
+            {
+                MarkUnresponsive(monitor);
+            }
+            else if (_unresponsiveMembers.Add(key))
+            {
+                _logger.Warning("{Monitor} (volume group) doesn't answer DDC; skipped until it does", monitor.DisplayName);
+            }
+
             return null;
         }
 
-        MarkResponding(monitor);
+        if (isTarget)
+        {
+            MarkResponding(monitor);
+        }
+        else if (_unresponsiveMembers.Remove(key))
+        {
+            _logger.Information("{Monitor} (volume group) answers DDC again", monitor.DisplayName);
+        }
+
         var state = new MonitorState(monitor, v.Maximum) { Raw = v.Current, LastUsed = _timeProvider.GetUtcNow() };
 
-        // Re-enumeration creates a new worker for the same monitor; compare identities so an emulated mute survives.
-        var sameMonitor = previous is not null && previous.Monitor.Identity.Key == monitor.Identity.Key;
-        if (sameMonitor && previous!.MuteMode == MuteMode.Emulated) // sameMonitor implies non-null.
+        // Re-enumeration creates a new worker for the same monitor; states are kept per identity key so an emulated mute survives.
+        if (previous is not null && previous.MuteMode == MuteMode.Emulated)
         {
             // Our emulated mute leaves the volume at 0; keep the remembered level unless someone changed it since.
             state.MuteMode = MuteMode.Emulated;
@@ -295,7 +441,7 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
             state.Level = FromRaw(state, v.Current);
         }
 
-        _state = state;
+        _states[key] = state;
         if (SameReading(previous, state))
         {
             return state;
@@ -358,10 +504,20 @@ public sealed class VolumeController : IVolumeCommandSink, IAsyncDisposable
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
         UpdatePollTimer();
+        UpdateGroupMemberCount();
         if (_mapper.Current is not null)
         {
             PostRefresh();
         }
+    }
+
+    private void OnMonitorsChanged(object? sender, EventArgs e) => UpdateGroupMemberCount();
+
+    // Read by the keyboard hook, which must not look at settings or the registry itself.
+    private void UpdateGroupMemberCount()
+    {
+        var settings = _settings.Current;
+        Volatile.Write(ref _groupMemberCount, _registry.Monitors.Count(m => IsGroupMember(settings, m.Identity.Key)));
     }
 
     private void PostRefresh() => _commands.Writer.TryWrite(new VolumeCommand(VolumeAction.Refresh));

@@ -17,6 +17,12 @@ public enum VolumeAction
 
     /// <summary>Set the volume to <see cref="VolumeCommand.Level"/> (e.g. from a slider) and unmute.</summary>
     Set,
+
+    /// <summary>
+    /// Turn the volume group on or off. <see cref="IVolumeCommandSink.TryPost"/> accepts it only while
+    /// at least two monitors are set up as group members.
+    /// </summary>
+    ToggleGroup,
 }
 
 /// <summary>
