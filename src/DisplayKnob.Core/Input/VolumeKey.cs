@@ -1,6 +1,6 @@
 namespace DisplayKnob.Core.Input;
 
-/// <summary>A media volume key.</summary>
+/// <summary>A media volume key, or the shortcut that turns the volume group on or off.</summary>
 public enum VolumeKey
 {
     /// <summary>VK_VOLUME_UP.</summary>
@@ -11,6 +11,9 @@ public enum VolumeKey
 
     /// <summary>VK_VOLUME_MUTE.</summary>
     Mute,
+
+    /// <summary>Turns the volume group on or off. Keyboard shortcuts only; there is no media key for it.</summary>
+    ToggleGroup,
 }
 
 /// <summary>

@@ -40,6 +40,11 @@ internal static class HotkeyMatcher
         {
             key = VolumeKey.Mute;
         }
+        else if (Matches(bindings.ToggleGroup, virtualKey, held))
+        {
+            key = VolumeKey.ToggleGroup; // No fine step for a toggle.
+            return true;
+        }
         else
         {
             return false;

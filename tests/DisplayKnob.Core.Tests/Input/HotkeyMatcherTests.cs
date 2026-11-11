@@ -8,6 +8,7 @@ public sealed class HotkeyMatcherTests
     private const ushort Up = 0x26;
     private const ushort Down = 0x28;
     private const ushort M = 0x4D;
+    private const ushort G = 0x47;
     private const HotkeyModifiers CtrlAlt = HotkeyModifiers.Control | HotkeyModifiers.Alt;
 
     private static readonly HotkeyBindings s_ctrlAlt = new HotkeySettings().Resolve()!;
@@ -23,6 +24,37 @@ public sealed class HotkeyMatcherTests
         Assert.True(matched);
         Assert.Equal(expected, key);
         Assert.False(fine);
+    }
+
+    [Fact]
+    public void TryMatch_ToggleGroupShortcut_ReturnsToggleGroupWithoutFineStep()
+    {
+        var matched = HotkeyMatcher.TryMatch(s_ctrlAlt, G, CtrlAlt | HotkeyModifiers.Shift, altGr: false, out var key, out var fine);
+
+        Assert.True(matched);
+        Assert.Equal(VolumeKey.ToggleGroup, key);
+        Assert.False(fine);
+    }
+
+    [Fact]
+    public void TryMatch_CustomToggleGroupShortcut_Matches()
+    {
+        var bindings = new HotkeySettings { Preset = HotkeyPreset.Custom, CustomToggleGroup = new Hotkey(HotkeyModifiers.Control, 0x47) }.Resolve()!;
+
+        var matched = HotkeyMatcher.TryMatch(bindings, G, HotkeyModifiers.Control, altGr: false, out var key, out _);
+
+        Assert.True(matched);
+        Assert.Equal(VolumeKey.ToggleGroup, key);
+    }
+
+    [Fact]
+    public void TryMatch_ToggleGroupUnassigned_DoesNotMatch()
+    {
+        var bindings = new HotkeyBindings(null, null, null);
+
+        var matched = HotkeyMatcher.TryMatch(bindings, G, CtrlAlt, altGr: false, out _, out _);
+
+        Assert.False(matched);
     }
 
     [Fact]

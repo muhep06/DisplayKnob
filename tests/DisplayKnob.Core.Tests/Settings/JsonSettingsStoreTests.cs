@@ -1,3 +1,4 @@
+using DisplayKnob.Core.Input;
 using DisplayKnob.Core.Settings;
 using Serilog.Core;
 
@@ -119,12 +120,14 @@ public sealed class JsonSettingsStoreTests : IDisposable
         {
             VolumeGroupEnabled = true,
             VolumeGroupOsd = GroupOsdMode.TargetOnly,
+            Hotkeys = s.Hotkeys with { CustomToggleGroup = new Hotkey(HotkeyModifiers.Control, 0x47) },
             Monitors = new Dictionary<string, MonitorSettings> { ["DEL4123-ABC|PATH"] = new() { InVolumeGroup = true } },
         });
         var reloaded = new JsonSettingsStore(SettingsPath, Logger.None).Current;
 
         Assert.True(reloaded.VolumeGroupEnabled);
         Assert.Equal(GroupOsdMode.TargetOnly, reloaded.VolumeGroupOsd);
+        Assert.Equal((ushort?)0x47, reloaded.Hotkeys.CustomToggleGroup?.VirtualKey);
         Assert.True(reloaded.ForMonitor("DEL4123-ABC|PATH").InVolumeGroup);
         Assert.Contains("\"TargetOnly\"", File.ReadAllText(SettingsPath));
     }
