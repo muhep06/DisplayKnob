@@ -187,12 +187,18 @@ public sealed class DdcWorkerTests
         var monitor = new FakeMonitorController(clock: time) { DropWritesWithin = TimeSpan.FromMilliseconds(150) };
         monitor.SetValue(VcpCodes.Brightness, 5, 50);
         var learned = new ConcurrentQueue<TimeSpan>();
+        using var gate = new ManualResetEventSlim(false);
+        monitor.Gate = gate;
         await using var worker = CreateVerifyingWorker(monitor, time);
         worker.CommandSpacingChanged += (_, spacing) => learned.Enqueue(spacing);
 
+        // The first write is held inside the monitor while the second is queued behind it. Otherwise the worker's
+        // "writes have stopped" timer could already be pending, and the test would move the clock past the second
+        // write's spacing before the worker looked at it, so the monitor wouldn't drop it.
         worker.WriteVcp(VcpCodes.Brightness, 10);
-        await time.RunUntilAsync(() => monitor.Writes.Count == 1);
+        Assert.True(monitor.CallStarted.Wait(s_timeout, Ct));
         worker.WriteVcp(VcpCodes.Brightness, 20);
+        gate.Set();
         await time.RunUntilAsync(() => !learned.IsEmpty);
 
         Assert.Equal(20u, monitor.GetCurrent(VcpCodes.Brightness));
