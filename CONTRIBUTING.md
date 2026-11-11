@@ -15,6 +15,24 @@ Run the app from `src/DisplayKnob.App` (or start `DisplayKnob.exe` from its `bin
 
 Real DDC/CI behavior can only be verified on real monitors. If your change touches DDC, describe the monitors you tested with in the PR.
 
+## Branches
+
+`main` is always releasable and is only changed through pull requests. There is no `develop` branch.
+
+Work happens on short-lived branches cut from `main`, named after the Conventional Commit type:
+
+| Prefix | Use for | Example |
+|---|---|---|
+| `feat/` | a new feature | `feat/multi-monitor-volume-group` |
+| `fix/` | a bug fix | `fix/ddc-command-spacing` |
+| `docs/` | documentation only | `docs/troubleshooting-spacing` |
+| `chore/` | CI, dependencies, maintenance | `chore/update-velopack` |
+
+- Use lowercase words separated by hyphens. Delete the branch after it is merged.
+- PRs are **squash-merged**. The PR title becomes the commit on `main`, so write it as a Conventional Commit (`fix(ddc): ...`).
+- A release is a `vX.Y.Z` tag on a green `main`; the Release workflow builds the installer from it.
+- If a released version needs a fix while `main` has moved on, cut `release/X.Y` from its tag, fix there, and tag a patch release. Don't create these branches ahead of time.
+
 ## Pull requests
 
 - Keep PRs small and focused. Open an issue first for larger changes.
