@@ -111,6 +111,39 @@ public sealed class JsonSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void Update_VolumeGroup_PersistsAcrossInstances()
+    {
+        var store = new JsonSettingsStore(SettingsPath, Logger.None);
+
+        store.Update(s => s with
+        {
+            VolumeGroupEnabled = true,
+            VolumeGroupOsd = GroupOsdMode.TargetOnly,
+            Monitors = new Dictionary<string, MonitorSettings> { ["DEL4123-ABC|PATH"] = new() { InVolumeGroup = true } },
+        });
+        var reloaded = new JsonSettingsStore(SettingsPath, Logger.None).Current;
+
+        Assert.True(reloaded.VolumeGroupEnabled);
+        Assert.Equal(GroupOsdMode.TargetOnly, reloaded.VolumeGroupOsd);
+        Assert.True(reloaded.ForMonitor("DEL4123-ABC|PATH").InVolumeGroup);
+        Assert.Contains("\"TargetOnly\"", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Constructor_FileWithoutVolumeGroup_UsesTheDefaults()
+    {
+        // A file saved before the volume group existed.
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(SettingsPath, """{ "monitors": { "DEL4123-ABC|PATH": { "ddcVolumeEnabled": true } } }""");
+
+        var settings = new JsonSettingsStore(SettingsPath, Logger.None).Current;
+
+        Assert.False(settings.VolumeGroupEnabled);
+        Assert.Equal(GroupOsdMode.EachMonitor, settings.VolumeGroupOsd);
+        Assert.False(settings.ForMonitor("DEL4123-ABC|PATH").InVolumeGroup);
+    }
+
+    [Fact]
     public void Constructor_MonitorEntryWithoutMaxVolumePercent_UsesFullRange()
     {
         // A file saved before the option existed.

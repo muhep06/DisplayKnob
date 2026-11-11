@@ -14,6 +14,12 @@ public sealed record MonitorSettings
     public bool DdcVolumeEnabled { get; set; } = true;
 
     /// <summary>
+    /// Part of the volume group: with <see cref="DisplayKnobSettings.VolumeGroupEnabled"/> on, the volume keys move
+    /// this monitor together with the other members. Only counts while <see cref="DdcVolumeEnabled"/> is on.
+    /// </summary>
+    public bool InVolumeGroup { get; set; }
+
+    /// <summary>
     /// Raw VCP 0x62 value that maps to 0% on the user scale. <see langword="null"/> means 0.
     /// Raise it when the bottom of the monitor's range is inaudible.
     /// </summary>
