@@ -4,6 +4,7 @@ using DisplayKnob.App.Updates;
 using DisplayKnob.App.ViewModels;
 using DisplayKnob.App.Views;
 using DisplayKnob.Core;
+using DisplayKnob.Core.Ddc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
 
@@ -20,6 +21,7 @@ internal static class Composition
 
         services.AddSingleton(logger);
         services.AddDisplayKnobCore();
+        OverrideDdcSpacingIfRequested(services);
         services.AddSingleton<UpdateService>();
         services.AddSingleton<TrayIconHost>();
         services.AddSingleton<StartupOffer>();
@@ -39,5 +41,16 @@ internal static class Composition
             ValidateOnBuild = true,
             ValidateScopes = true,
         });
+    }
+
+    // Debug builds only: DISPLAYKNOB_DDC_SPACING_MS=<ms> starts every monitor with that pause between DDC commands,
+    // so "a too short pause is noticed and widened" can be tried on real hardware.
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void OverrideDdcSpacingIfRequested(IServiceCollection services)
+    {
+        if (int.TryParse(Environment.GetEnvironmentVariable("DISPLAYKNOB_DDC_SPACING_MS"), System.Globalization.CultureInfo.InvariantCulture, out var ms) && ms >= 0)
+        {
+            services.AddSingleton(DdcWorkerOptions.Default with { CommandSpacing = TimeSpan.FromMilliseconds(ms) });
+        }
     }
 }

@@ -12,6 +12,8 @@ namespace DisplayKnob.Core.Ddc;
 /// observes every write requested before it.</para>
 /// <para>Failed operations are retried with linear backoff; failures after the last attempt are
 /// logged and reported as <see langword="null"/>/<see langword="false"/>, never thrown.</para>
+/// <para>Commands are spaced (<see cref="DdcWorkerOptions.CommandSpacing"/>): a monitor drops a command that
+/// follows the previous one too closely, and the call still reports success.</para>
 /// </remarks>
 public sealed class DdcWorker : IAsyncDisposable
 {
@@ -27,11 +29,27 @@ public sealed class DdcWorker : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
     private bool _failing; // Only touched by the loop.
+    private long? _lastCommandEnd; // Only touched by the loop: when the previous DDC command finished.
+    private long _spacingTicks; // Written by the loop only; read from anywhere through CommandSpacing.
+
+    // Write verification (see DdcWorkerOptions.VerifiedCodes). All of it is only touched by the loop.
+    private readonly Dictionary<byte, uint> _lastKnown = []; // Last value seen or written per verified code.
+    private readonly Dictionary<byte, WriteCheck> _toVerify = [];
+    private readonly Dictionary<byte, int> _oddMismatches = [];
+    private readonly HashSet<byte> _notVerified = [];
 
     /// <summary>
     /// Creates the worker and starts its loop. The worker takes ownership of <paramref name="monitor"/>.
     /// </summary>
-    public DdcWorker(IMonitorController monitor, TimeProvider timeProvider, DdcWorkerOptions options, ILogger logger)
+    /// <param name="monitor">The monitor to talk to.</param>
+    /// <param name="timeProvider">Clock for the spacing, retries and verification.</param>
+    /// <param name="options">Retry, pacing and verification policy.</param>
+    /// <param name="logger">Logger.</param>
+    /// <param name="initialSpacing">
+    /// The command spacing learned for this monitor earlier, if any. It is used when it is longer than
+    /// <see cref="DdcWorkerOptions.CommandSpacing"/>.
+    /// </param>
+    public DdcWorker(IMonitorController monitor, TimeProvider timeProvider, DdcWorkerOptions options, ILogger logger, TimeSpan? initialSpacing = null)
     {
         ArgumentNullException.ThrowIfNull(monitor);
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -43,8 +61,14 @@ public sealed class DdcWorker : IAsyncDisposable
         _timeProvider = timeProvider;
         _options = options;
         _logger = logger.ForContext<DdcWorker>();
+        _spacingTicks = (initialSpacing is { } learned && learned > options.CommandSpacing ? learned : options.CommandSpacing).Ticks;
         _loop = Task.Run(() => RunAsync(_stop.Token));
     }
+
+    /// <summary>What the worker expects a verified code to read after its last write.</summary>
+    /// <param name="Expected">The value last written.</param>
+    /// <param name="Previous">The value the monitor held before it, if known: what it still reports if the write was dropped.</param>
+    private readonly record struct WriteCheck(uint Expected, uint? Previous);
 
     private interface IReadItem
     {
@@ -64,6 +88,15 @@ public sealed class DdcWorker : IAsyncDisposable
     /// so this is the only way to learn about it.
     /// </summary>
     public event EventHandler<VcpWriteFailedEventArgs>? WriteFailed;
+
+    /// <summary>
+    /// Raised on the worker's loop after it learned that this monitor needs a longer pause between commands; the
+    /// argument is the new spacing. Callers persist it so the next start doesn't have to find out again.
+    /// </summary>
+    public event EventHandler<TimeSpan>? CommandSpacingChanged;
+
+    /// <summary>The pause currently kept between DDC commands.</summary>
+    public TimeSpan CommandSpacing => TimeSpan.FromTicks(Volatile.Read(ref _spacingTicks));
 
     /// <summary>Stable identity of the monitor.</summary>
     public MonitorIdentity Identity => _monitor.Identity;
@@ -95,7 +128,20 @@ public sealed class DdcWorker : IAsyncDisposable
     public Task<VcpValue?> ReadVcpAsync(byte code, CancellationToken cancellationToken = default) =>
         EnqueueRead<VcpValue?>(
             $"read VCP 0x{code:X2}",
-            m => m.TryGetVcp(code, out var value) ? (true, value) : (false, null),
+            m =>
+            {
+                if (!m.TryGetVcp(code, out var value))
+                {
+                    return (false, null);
+                }
+
+                if (Verifies(code))
+                {
+                    _lastKnown[code] = value.Current; // Runs on the loop, like every other use of the dictionary.
+                }
+
+                return (true, value);
+            },
             cancellationToken);
 
     /// <summary>
@@ -143,10 +189,33 @@ public sealed class DdcWorker : IAsyncDisposable
     {
         try
         {
+            // One wait task is kept across iterations, so a signal that arrives while the loop is verifying isn't lost.
+            var signal = _signal.WaitAsync(stopToken);
             while (true)
             {
-                await _signal.WaitAsync(stopToken).ConfigureAwait(false);
-                await DrainAsync(stopToken).ConfigureAwait(false);
+                if (_toVerify.Count == 0)
+                {
+                    await signal.ConfigureAwait(false);
+                    signal = _signal.WaitAsync(stopToken);
+                    await DrainAsync(stopToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                // Writes have just been sent. Once nothing new has come in for a while, check that the last one stuck.
+                using var quietCts = CancellationTokenSource.CreateLinkedTokenSource(stopToken);
+                var quiet = Task.Delay(_options.VerifyDelay, _timeProvider, quietCts.Token);
+                if (await Task.WhenAny(signal, quiet).ConfigureAwait(false) == signal)
+                {
+                    await quietCts.CancelAsync().ConfigureAwait(false); // The wait for quiet starts over after the new work.
+                    await signal.ConfigureAwait(false);
+                    signal = _signal.WaitAsync(stopToken);
+                    await DrainAsync(stopToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await quiet.ConfigureAwait(false);
+                    await VerifyAsync(stopToken).ConfigureAwait(false);
+                }
             }
         }
         catch (OperationCanceledException) when (stopToken.IsCancellationRequested)
@@ -188,7 +257,11 @@ public sealed class DdcWorker : IAsyncDisposable
                 foreach (var (code, value) in writes)
                 {
                     stopToken.ThrowIfCancellationRequested();
-                    if (!await ExecuteWithRetryAsync($"write VCP 0x{code:X2}={value}", m => m.TrySetVcp(code, value), stopToken).ConfigureAwait(false))
+                    if (await ExecuteWithRetryAsync($"write VCP 0x{code:X2}={value}", m => m.TrySetVcp(code, value), stopToken).ConfigureAwait(false))
+                    {
+                        TrackWrite(code, value);
+                    }
+                    else
                     {
                         WriteFailed?.Invoke(this, new VcpWriteFailedEventArgs(code, value));
                     }
@@ -223,7 +296,17 @@ public sealed class DdcWorker : IAsyncDisposable
     {
         for (var i = 1; ; i++)
         {
-            if (attempt(_monitor))
+            await WaitForCommandSpacingAsync(stopToken).ConfigureAwait(false);
+            var started = _timeProvider.GetTimestamp();
+            var succeeded = attempt(_monitor);
+            _lastCommandEnd = _timeProvider.GetTimestamp();
+            _logger.Debug(
+                "DDC {Operation} on {Monitor}: {Result} in {Elapsed:F0} ms",
+                operation,
+                DisplayName,
+                succeeded ? "ok" : "failed",
+                _timeProvider.GetElapsedTime(started, _lastCommandEnd.Value).TotalMilliseconds);
+            if (succeeded)
             {
                 if (_failing)
                 {
@@ -253,6 +336,170 @@ public sealed class DdcWorker : IAsyncDisposable
             await Task.Delay(_options.RetryDelay * i, _timeProvider, stopToken).ConfigureAwait(false);
         }
     }
+
+    // See DdcWorkerOptions.CommandSpacing: a monitor ignores a command that comes too soon after the previous one.
+    private async Task WaitForCommandSpacingAsync(CancellationToken stopToken)
+    {
+        var spacing = CommandSpacing;
+        if (_lastCommandEnd is not { } last || spacing <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        var wait = spacing - _timeProvider.GetElapsedTime(last);
+        if (wait > TimeSpan.Zero)
+        {
+            await Task.Delay(wait, _timeProvider, stopToken).ConfigureAwait(false);
+        }
+    }
+
+    private bool Verifies(byte code) =>
+        _options.VerifyDelay > TimeSpan.Zero && _options.VerifiedCodes is { } codes && codes.Contains(code);
+
+    // A write went out: remember what the monitor should now report, and what it reported before.
+    private void TrackWrite(byte code, uint value)
+    {
+        if (!Verifies(code) || _notVerified.Contains(code))
+        {
+            return;
+        }
+
+        // If the previous write of this series was dropped, the monitor still reports the one before it.
+        uint? previous = _toVerify.TryGetValue(code, out var pending) ? pending.Expected
+            : _lastKnown.TryGetValue(code, out var known) ? known
+            : null;
+        _toVerify[code] = new WriteCheck(value, previous);
+        _lastKnown[code] = value;
+    }
+
+    // The writes have stopped: read back what was written last. Runs on the loop.
+    private async Task VerifyAsync(CancellationToken stopToken)
+    {
+        foreach (var (code, check) in _toVerify.ToArray())
+        {
+            lock (_lock)
+            {
+                if (_pendingWrites.ContainsKey(code))
+                {
+                    continue; // A newer write is waiting; that one will be checked instead.
+                }
+            }
+
+            _toVerify.Remove(code);
+            await VerifyCodeAsync(code, check, stopToken).ConfigureAwait(false);
+
+            lock (_lock)
+            {
+                if (_pendingWrites.Count > 0 || _pendingReads.Count > 0)
+                {
+                    return; // Real work came in; the rest is checked the next time it's quiet.
+                }
+            }
+        }
+    }
+
+    private async Task VerifyCodeAsync(byte code, WriteCheck check, CancellationToken stopToken)
+    {
+        var actual = await ReadBackAsync(code, stopToken).ConfigureAwait(false);
+        if (actual is null)
+        {
+            return; // The monitor isn't answering; the callers find out through their own reads and writes.
+        }
+
+        if (actual == check.Expected)
+        {
+            _oddMismatches.Remove(code);
+            return;
+        }
+
+        // A dropped write leaves the monitor at the value before it. Anything else (a monitor that rounds or clamps,
+        // or someone pressing its buttons) says nothing about timing, so the spacing is left alone.
+        if (check.Previous is { } previous && actual != previous)
+        {
+            var odd = _oddMismatches.GetValueOrDefault(code) + 1;
+            _oddMismatches[code] = odd;
+            if (odd >= 2)
+            {
+                _notVerified.Add(code);
+                _logger.Debug("{Monitor} reports other values than written for VCP 0x{Code:X2}; not verifying it any more", DisplayName, code);
+            }
+
+            return;
+        }
+
+        var startSpacing = CommandSpacing;
+        for (var attempt = 1; attempt <= MaxResends; attempt++)
+        {
+            GrowSpacing();
+            if (!await ExecuteWithRetryAsync($"re-send VCP 0x{code:X2}={check.Expected}", m => m.TrySetVcp(code, check.Expected), stopToken).ConfigureAwait(false))
+            {
+                SetSpacing(startSpacing);
+                return;
+            }
+
+            actual = await ReadBackAsync(code, stopToken).ConfigureAwait(false);
+            if (actual == check.Expected)
+            {
+                _oddMismatches.Remove(code);
+                _lastKnown[code] = check.Expected;
+                _logger.Information(
+                    "{Monitor} ignored a DDC write sent {Start} ms after the previous command; keeping {Spacing} ms between commands",
+                    DisplayName,
+                    startSpacing.TotalMilliseconds,
+                    CommandSpacing.TotalMilliseconds);
+                CommandSpacingChanged?.Invoke(this, CommandSpacing);
+                return;
+            }
+
+            if (actual is null)
+            {
+                SetSpacing(startSpacing);
+                return;
+            }
+        }
+
+        // A longer pause didn't help, so the pause isn't the problem: undo it and stop checking this code.
+        SetSpacing(startSpacing);
+        _notVerified.Add(code);
+        _logger.Warning("{Monitor} doesn't apply writes to VCP 0x{Code:X2} even after longer pauses", DisplayName, code);
+    }
+
+    private const int MaxResends = 3;
+
+    private async Task<uint?> ReadBackAsync(byte code, CancellationToken stopToken)
+    {
+        uint? value = null;
+        var ok = await ExecuteWithRetryAsync(
+            $"verify VCP 0x{code:X2}",
+            m =>
+            {
+                if (!m.TryGetVcp(code, out var read))
+                {
+                    return false;
+                }
+
+                value = read.Current;
+                return true;
+            },
+            stopToken).ConfigureAwait(false);
+
+        if (ok && value is { } current)
+        {
+            _lastKnown[code] = current;
+        }
+
+        return ok ? value : null;
+    }
+
+    // Half again, at least 40 ms more, up to the limit: 80, 120, 180, 270, 400 ms.
+    private void GrowSpacing()
+    {
+        var current = CommandSpacing;
+        var next = current + TimeSpan.FromTicks(Math.Max(TimeSpan.FromMilliseconds(40).Ticks, current.Ticks / 2));
+        SetSpacing(next < _options.MaxCommandSpacing ? next : TimeSpan.FromTicks(Math.Max(current.Ticks, _options.MaxCommandSpacing.Ticks)));
+    }
+
+    private void SetSpacing(TimeSpan spacing) => Volatile.Write(ref _spacingTicks, spacing.Ticks);
 
     private void CancelPendingReads()
     {

@@ -1,5 +1,6 @@
 using DisplayKnob.Core.Ddc;
 using DisplayKnob.Core.Displays;
+using DisplayKnob.Core.Settings;
 using DisplayKnob.Core.Tests.Fakes;
 using Serilog.Core;
 
@@ -61,6 +62,47 @@ public sealed class MonitorRegistryTests
 
         // Capabilities + brightness + volume + mute.
         Assert.True(a.CallCount >= 4);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_SpacingLearnedEarlier_StartsTheWorkerWithIt()
+    {
+        var monitor = new FakeMonitorController("A");
+        var settings = new InMemorySettingsStore();
+        settings.Update(s => s with { Monitors = new Dictionary<string, MonitorSettings> { [monitor.Identity.Key] = new() { CommandSpacingMs = 200 } } });
+        var options = new DdcWorkerOptions(1, TimeSpan.Zero, CommandSpacing: TimeSpan.FromMilliseconds(80));
+        await using var registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [monitor]), TimeProvider.System, options, Logger.None, settings);
+
+        await registry.RefreshAsync(Ct);
+
+        Assert.Equal(TimeSpan.FromMilliseconds(200), registry.Monitors[0].CommandSpacing);
+    }
+
+    [Fact]
+    public async Task Worker_LearnsALongerSpacing_TheRegistrySavesItInTheSettings()
+    {
+        var time = new ManualTimeProvider();
+        var monitor = new FakeMonitorController("A", time) { DropWritesWithin = TimeSpan.FromMilliseconds(150) };
+        monitor.SetValue(VcpCodes.Brightness, 5, 50);
+        var settings = new InMemorySettingsStore();
+        var options = new DdcWorkerOptions(
+            1,
+            TimeSpan.Zero,
+            CommandSpacing: TimeSpan.FromMilliseconds(80),
+            VerifyDelay: TimeSpan.FromMilliseconds(150),
+            MaxCommandSpacing: TimeSpan.FromMilliseconds(400),
+            VerifiedCodes: new HashSet<byte> { VcpCodes.Brightness });
+        await using var registry = new MonitorRegistry(new FakeMonitorEnumerator(() => [monitor]), time, options, Logger.None, settings);
+        await registry.RefreshAsync(Ct);
+        var worker = registry.Monitors[0];
+
+        worker.WriteVcp(VcpCodes.Brightness, 10);
+        await time.RunUntilAsync(() => monitor.Writes.Count == 1);
+        worker.WriteVcp(VcpCodes.Brightness, 20); // Follows too closely and is dropped.
+        await time.RunUntilAsync(() => settings.Current.ForMonitor(monitor.Identity.Key).CommandSpacingMs is not null);
+
+        Assert.Equal((int)worker.CommandSpacing.TotalMilliseconds, settings.Current.ForMonitor(monitor.Identity.Key).CommandSpacingMs);
+        Assert.True(worker.CommandSpacing >= TimeSpan.FromMilliseconds(150));
     }
 
     private static MonitorRegistry CreateRegistry(FakeMonitorEnumerator enumerator) =>

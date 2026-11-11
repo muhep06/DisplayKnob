@@ -36,6 +36,13 @@ public sealed record MonitorSettings
     /// </summary>
     public int MaxVolumePercent { get; set; } = 100;
 
+    /// <summary>
+    /// The pause, in milliseconds, this monitor needs between DDC commands, as learned by DisplayKnob: a monitor
+    /// ignores a command that comes too soon after the previous one. <see langword="null"/> means the default.
+    /// Written by the app; delete it to learn again.
+    /// </summary>
+    public int? CommandSpacingMs { get; set; }
+
     /// <summary>How the 0–100 scale maps onto the usable range. Monitors respond very differently at the low end.</summary>
     public VolumeCurve VolumeCurve { get; set; } = VolumeCurve.Linear;
 

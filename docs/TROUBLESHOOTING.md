@@ -25,6 +25,10 @@ Some docks, adapters and DisplayLink-style outputs don't support DDC/CI. Check t
 - Many monitors only use part of the 0–100 range. The per-monitor *Maximum volume* squeezes the scale below a limit, and *Volume curve* "Logarithmic" takes finer steps at low volume. Try it if the lowest levels are too loud or the top ones do nothing.
 - If another computer or the monitor's own buttons left the volume above your limit, the next volume key press brings it back down to the limit.
 
+## Brightness or volume stops short of the value I dragged to
+
+Some monitors silently ignore a DDC command that comes too soon after the previous one. DisplayKnob keeps a short pause between commands, reads the value back once you stop, and if the last write was lost it sends it again and lengthens the pause for that monitor. What it learned is saved per monitor as `commandSpacingMs` in `settings.json` (delete the entry to learn again). If it still happens, attach the log: it lists every DDC command with its duration.
+
 ## The keyboard shortcuts don't work
 
 - Use the **left** Alt key. The right one is AltGr on many keyboards and never triggers a shortcut, so it can't swallow the characters you type with it.
